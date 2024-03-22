@@ -11,6 +11,7 @@ from torch.optim.lr_scheduler import _LRScheduler as LRScheduler
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import ViTConfig, ViTForImageClassification, ViTImageProcessor
+from transformers.models.vit.modeling_vit import ViTEncoder
 
 import colossalai
 from colossalai.booster import Booster
@@ -20,8 +21,38 @@ from colossalai.logging import disable_existing_loggers, get_dist_logger
 from colossalai.nn.lr_scheduler import CosineAnnealingWarmupLR
 from colossalai.nn.optimizer import HybridAdam
 
+# JINLOVESPHO
+import sys
+import pdb
+from torchvision import datasets 
+from util.utils import get_dataset, get_model
+import wandb
+
+from transformers import AutoImageProcessor, AutoModelForImageClassification
+
+# processor = AutoImageProcessor.from_pretrained("google/vit-base-patch16-224")
+# model = AutoModelForImageClassification.from_pretrained("google/vit-base-patch16-224")
+
+# breakpoint()
+
+class ForkedPdb(pdb.Pdb):
+    """
+    PDB Subclass for debugging multi-processed code
+    Suggested in: https://stackoverflow.com/questions/4716533/how-to-attach-debugger-to-a-python-subproccess
+    """
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
+        try:
+            sys.stdin = open('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
+        finally:
+            sys.stdin = _stdin
+
 
 def move_to_cuda(batch, device):
+    # cifar100
+    return {'pixel_values':batch[0].to(device), 'labels':batch[1].to(device)}
+    # beans
     return {k: v.to(device) for k, v in batch.items()}
 
 
@@ -41,8 +72,10 @@ def run_forward_backward(
         )
         loss, outputs = output_dict["loss"], output_dict["outputs"]
     else:
+        # breakpoint()
         batch = next(data_iter)
-        batch = move_to_cuda(batch, torch.cuda.current_device())
+        if type(batch) == list:
+            batch = move_to_cuda(batch, torch.cuda.current_device())
         outputs = model(**batch)
         loss = criterion(outputs, None)
         if optimizer is not None:
@@ -76,6 +109,7 @@ def train_epoch(
 
     with tqdm(range(num_steps), desc=f"Epoch [{epoch + 1}]", disable=not enable_pbar) as pbar:
         for _ in pbar:
+            # breakpoint()
             loss, _ = run_forward_backward(model, optimizer, criterion, data_iter, booster)
             optimizer.step()
             lr_scheduler.step()
@@ -134,6 +168,7 @@ def evaluate_model(
 
 
 def main():
+    # ForkedPdb().set_trace()
     args = parse_demo_args()
 
     # Launch ColossalAI
@@ -155,24 +190,45 @@ def main():
         args.pp_size = 1
 
     # Prepare Dataset
-    image_processor = ViTImageProcessor.from_pretrained(args.model_name_or_path)
-    train_dataset = BeansDataset(image_processor, args.tp_size, split="train")
-    eval_dataset = BeansDataset(image_processor, args.tp_size, split="validation")
-    num_labels = train_dataset.num_labels
+    data_dir = "/media/dataset1/jinlovespho_ds/cifar100"
+    train_ds, val_ds = get_dataset(data_dir)
+    num_labels = len(train_ds.classes)
 
+    # image_processor = ViTImageProcessor.from_pretrained(args.model_name_or_path)
+    # train_ds2 = BeansDataset(image_processor, args.tp_size, split="train")
+    # val_ds2 = BeansDataset(image_processor, args.tp_size, split="validation")
+    # num_labels = train_ds2.num_labels
+
+    # breakpoint()
     # Load pretrained ViT model
     config = ViTConfig.from_pretrained(args.model_name_or_path)
+    
+    config.hidden_size = 192
+    config.num_hidden_layers = 12 
+    config.num_attention_heads = 3 
+    config.intermediate_size = 192*4
+    config.hidden_act = 'gelu'
+    config.hidden_dropout_prob = 0.1
+    config.attention_probs_dropout_prob = 0.1
+    config.initializer_range =0.02
+    config.layer_norm_eps = 1e-12
+    config.gradient_checkpointing = False
+    config.image_size = args.img_size
+    config.patch_size = args.patch_size
+    config.num_channels = 3
+    
     config.num_labels = num_labels
-    config.id2label = {str(i): c for i, c in enumerate(train_dataset.label_names)}
-    config.label2id = {c: str(i) for i, c in enumerate(train_dataset.label_names)}
+    config.id2label = {str(i): c for i, c in enumerate(train_ds.classes)}
+    config.label2id = {c: str(i) for i, c in enumerate(train_ds.classes)}
+    # config.id2label = {str(i): c for i, c in enumerate(train_ds2.label_names)}
+    # config.label2id = {c: str(i) for i, c in enumerate(train_ds2.label_names)}
+    
     model = ViTForImageClassification.from_pretrained(
         args.model_name_or_path, config=config, ignore_mismatched_sizes=True
     )
     logger.info(f"Finish loading model from {args.model_name_or_path}", ranks=[0])
 
-    # Enable gradient checkpointing
-    if args.grad_checkpoint:
-        model.gradient_checkpointing_enable()
+    # breakpoint()
 
     # Set plugin
     booster_kwargs = {}
@@ -200,10 +256,10 @@ def main():
 
     # Prepare dataloader
     train_dataloader = plugin.prepare_dataloader(
-        train_dataset, batch_size=args.batch_size, shuffle=True, drop_last=True, collate_fn=beans_collator
+        train_ds, batch_size=args.batch_size, shuffle=True, drop_last=True
     )
     eval_dataloader = plugin.prepare_dataloader(
-        eval_dataset, batch_size=args.batch_size, shuffle=True, drop_last=True, collate_fn=beans_collator
+        val_ds, batch_size=args.batch_size, shuffle=True, drop_last=True
     )
 
     # Set optimizer

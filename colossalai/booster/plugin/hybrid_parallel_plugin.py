@@ -177,6 +177,7 @@ class HybridParallelModule(ModelWrapper, AMPModelMixin):
                 SeqParallelUtils.allreduce_partial_data_grad(tp_group=self.tp_group, model=self.module)
 
     def forward(self, *args, **kwargs):
+        breakpoint()
         if self.convert_fn is not None:
             args = tree_map(self.convert_fn, args)
             kwargs = tree_map(self.convert_fn, kwargs)

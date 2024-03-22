@@ -13,6 +13,21 @@ from colossalai.cluster import DistCoordinator
 from colossalai.logging import disable_existing_loggers, get_dist_logger
 from colossalai.nn.optimizer import HybridAdam
 
+import sys
+import pdb
+
+class ForkedPdb(pdb.Pdb):
+    """
+    PDB Subclass for debugging multi-processed code
+    Suggested in: https://stackoverflow.com/questions/4716533/how-to-attach-debugger-to-a-python-subproccess
+    """
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
+        try:
+            sys.stdin = open('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
+        finally:
+            sys.stdin = _stdin
 
 def format_num(num: int, bytes=False):
     """Scale bytes to its proper format, e.g. 1253656 => '1.20MB'"""
@@ -43,6 +58,7 @@ def colo_memory_cap(size_in_GB):
 
 
 def main():
+    ForkedPdb().set_trace()
     args = parse_benchmark_args()
 
     # Launch ColossalAI
@@ -50,6 +66,7 @@ def main():
     coordinator = DistCoordinator()
     world_size = coordinator.world_size
 
+    
     # Manage loggers
     disable_existing_loggers()
     logger = get_dist_logger()

@@ -3,6 +3,15 @@ import argparse
 
 def parse_demo_args():
     parser = argparse.ArgumentParser()
+    
+    parser.add_argument('--dataset', type=str)
+    parser.add_argument('--num_class', type=int)
+    parser.add_argument('--img_size', type=int)
+    parser.add_argument('--patch_size', type=int)
+    
+    parser.add_argument('--model_name', type=str, default='vit')
+    parser.add_argument('--dropout_ratio', type=float )
+    
     parser.add_argument(
         "--model_name_or_path",
         type=str,
@@ -54,6 +63,7 @@ def parse_demo_args():
 def parse_benchmark_args():
     parser = argparse.ArgumentParser()
 
+
     parser.add_argument(
         "--model_name_or_path",
         type=str,
@@ -78,7 +88,7 @@ def parse_benchmark_args():
     )
     parser.add_argument("--weight_decay", type=float, default=0.0, help="Weight decay to use.")
     parser.add_argument("--grad_checkpoint", type=bool, default=True, help="Whether to use gradient checkpointing.")
-    parser.add_argument("--max_train_steps", type=int, default=20, help="Total number of training steps to perform.")
+    parser.add_argument("--max_train_steps", type=int, default=3, help="Total number of training steps to perform.")
     parser.add_argument("--seed", type=int, default=42, help="A seed for reproducible training.")
     parser.add_argument("--mem_cap", type=int, default=0, help="Limit on the usage of space for each GPU (in GB).")
     args = parser.parse_args()
