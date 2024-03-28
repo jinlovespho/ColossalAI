@@ -5,13 +5,12 @@ import torch.distributed as dist
 import torch.nn as nn
 import transformers
 from args import parse_demo_args
-from data import BeansDataset, beans_collator
+# from data import BeansDataset, beans_collator
 from torch.optim import Optimizer
 from torch.optim.lr_scheduler import _LRScheduler as LRScheduler
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import ViTConfig, ViTForImageClassification, ViTImageProcessor
-from transformers.models.vit.modeling_vit import ViTEncoder
 
 import colossalai
 from colossalai.booster import Booster
@@ -27,13 +26,20 @@ import pdb
 from torchvision import datasets 
 from util.utils import get_dataset, get_model
 import wandb
+import numpy as np
 
 from transformers import AutoImageProcessor, AutoModelForImageClassification
+from datasets import load_dataset
+from networks.vit import ViT
+
 
 # processor = AutoImageProcessor.from_pretrained("google/vit-base-patch16-224")
 # model = AutoModelForImageClassification.from_pretrained("google/vit-base-patch16-224")
 
-# breakpoint()
+
+# cifar_ds = load_dataset(path='cifar100')
+# htrain_ds = cifar_ds['train']
+# hval_ds = cifar_ds['test']
 
 class ForkedPdb(pdb.Pdb):
     """
@@ -76,6 +82,7 @@ def run_forward_backward(
         batch = next(data_iter)
         if type(batch) == list:
             batch = move_to_cuda(batch, torch.cuda.current_device())
+        # breakpoint()
         outputs = model(**batch)
         loss = criterion(outputs, None)
         if optimizer is not None:
@@ -107,17 +114,24 @@ def train_epoch(
 
     model.train()
 
+    train_avg_loss_lst=[]
     with tqdm(range(num_steps), desc=f"Epoch [{epoch + 1}]", disable=not enable_pbar) as pbar:
         for _ in pbar:
             # breakpoint()
             loss, _ = run_forward_backward(model, optimizer, criterion, data_iter, booster)
             optimizer.step()
             lr_scheduler.step()
+            
+            train_avg_loss_lst.append(loss.item())
+            wandb.log( {'train_step_loss':loss} )
 
             # Print batch loss
             if enable_pbar:
                 pbar.set_postfix({"loss": loss.item()})
-
+    
+    train_avg_loss = np.mean(train_avg_loss_lst)
+    wandb.log( {'train_avg_loss':train_avg_loss } )
+    
 
 @torch.no_grad()
 def evaluate_model(
@@ -159,6 +173,12 @@ def evaluate_model(
     dist.all_reduce(accum_correct)
     avg_loss = "{:.4f}".format(accum_loss.item())
     accuracy = "{:.4f}".format(accum_correct.item() / total_num.item())
+    
+    # breakpoint()
+    wandb.log({ 'val_loss':float(avg_loss),
+                'val_acc':float(accuracy),
+                'epoch':epoch+1 })
+
     if coordinator.is_master():
         print(
             f"Evaluation result for epoch {epoch + 1}: \
@@ -166,8 +186,8 @@ def evaluate_model(
                 accuracy={accuracy}."
         )
 
-
 def main():
+    
     # ForkedPdb().set_trace()
     args = parse_demo_args()
 
@@ -175,6 +195,7 @@ def main():
     colossalai.launch_from_torch(config={}, seed=args.seed)
     coordinator = DistCoordinator()
     world_size = coordinator.world_size
+    print('world size: ', world_size)
 
     # Manage loggers
     disable_existing_loggers()
@@ -190,7 +211,7 @@ def main():
         args.pp_size = 1
 
     # Prepare Dataset
-    data_dir = "/media/dataset1/jinlovespho_ds/cifar100"
+    data_dir = args.data_dir
     train_ds, val_ds = get_dataset(data_dir)
     num_labels = len(train_ds.classes)
 
@@ -200,33 +221,69 @@ def main():
     # num_labels = train_ds2.num_labels
 
     # breakpoint()
+
     # Load pretrained ViT model
     config = ViTConfig.from_pretrained(args.model_name_or_path)
     
-    config.hidden_size = 192
-    config.num_hidden_layers = 12 
-    config.num_attention_heads = 3 
-    config.intermediate_size = 192*4
+    # breakpoint()
+    if args.model_name == 'vit_tiny':
+        print('vit: tiny')
+        num_hidden_layers=12 
+        hidden_size=192
+        intermediate_size=768 
+        num_attention_heads=3 
+    
+    elif args.model_name == 'vit_small':
+        print('vit: small')
+        num_hidden_layers=12 
+        hidden_size=384
+        intermediate_size=1536       
+        num_attention_heads=6 
+
+    elif args.model_name == 'vit_base':
+        print('vit: base')
+        num_hidden_layers=12 
+        hidden_size=768
+        intermediate_size=3072 
+        num_attention_heads=12 
+
+    elif args.model_name == 'vit_large':
+        print('vit: large')
+        num_hidden_layers=24 
+        hidden_size=1024
+        intermediate_size=4096 
+        num_attention_heads=16 
+        
+    config.hidden_size = hidden_size
+    config.num_hidden_layers = num_hidden_layers
+    config.num_attention_heads = num_attention_heads
+    config.intermediate_size = intermediate_size
+    config.hidden_dropout_prob = args.hidden_dropout_prob
+    config.attention_probs_dropout_prob = args.attention_probs_dropout_prob
+    config.gradient_checkpointing = args.grad_checkpoint
     config.hidden_act = 'gelu'
-    config.hidden_dropout_prob = 0.1
-    config.attention_probs_dropout_prob = 0.1
     config.initializer_range =0.02
     config.layer_norm_eps = 1e-12
-    config.gradient_checkpointing = False
     config.image_size = args.img_size
     config.patch_size = args.patch_size
     config.num_channels = 3
-    
     config.num_labels = num_labels
     config.id2label = {str(i): c for i, c in enumerate(train_ds.classes)}
     config.label2id = {c: str(i) for i, c in enumerate(train_ds.classes)}
-    # config.id2label = {str(i): c for i, c in enumerate(train_ds2.label_names)}
-    # config.label2id = {c: str(i) for i, c in enumerate(train_ds2.label_names)}
-    
+ 
     model = ViTForImageClassification.from_pretrained(
         args.model_name_or_path, config=config, ignore_mismatched_sizes=True
     )
     logger.info(f"Finish loading model from {args.model_name_or_path}", ranks=[0])
+
+    # setup wandb logger
+    wandb.init( 
+            project=args.project_name,
+            name=args.exp_name,
+            config=config,
+            dir=args.wandb_save_dir,
+            mode = args.is_wandb
+            )
 
     # breakpoint()
 
@@ -246,13 +303,17 @@ def main():
             pp_size=args.pp_size,
             num_microbatches=None,
             microbatch_size=1,
-            enable_all_optimization=True,
+            enable_all_optimization=False,
             precision="fp16",
             initial_scale=1,
         )
     else:
         raise ValueError(f"Plugin with name {args.plugin} is not supported!")
     logger.info(f"Set plugin as {args.plugin}", ranks=[0])
+
+    # Enable gradient checkpointing
+    if args.grad_checkpoint:
+        model.gradient_checkpointing_enable()
 
     # Prepare dataloader
     train_dataloader = plugin.prepare_dataloader(
@@ -262,11 +323,14 @@ def main():
         val_ds, batch_size=args.batch_size, shuffle=True, drop_last=True
     )
 
+    # breakpoint()
+    # model = ViT()
     # Set optimizer
     optimizer = HybridAdam(model.parameters(), lr=(args.learning_rate * world_size), weight_decay=args.weight_decay)
 
     # Set criterion (loss function)
     def criterion(outputs, inputs):
+        # breakpoint()
         return outputs.loss
 
     # Set lr scheduler
@@ -278,13 +342,14 @@ def main():
 
     # Set booster
     booster = Booster(plugin=plugin, **booster_kwargs)
-    model, optimizer, _criterion, train_dataloader, lr_scheduler = booster.boost(
+    model, optimizer, criterion, train_dataloader, lr_scheduler = booster.boost(
         model=model, optimizer=optimizer, criterion=criterion, dataloader=train_dataloader, lr_scheduler=lr_scheduler
     )
 
     # Finetuning
     logger.info(f"Start finetuning", ranks=[0])
     for epoch in range(args.num_epoch):
+        # breakpoint()
         train_epoch(epoch, model, optimizer, criterion, lr_scheduler, train_dataloader, booster, coordinator)
         evaluate_model(epoch, model, criterion, eval_dataloader, booster, coordinator)
     logger.info(f"Finish finetuning", ranks=[0])
