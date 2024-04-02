@@ -17,7 +17,7 @@ PARALLEL_ARGS="
   --pp_size 1 \
 "
 
-lr=4e-5
+lr=1e-3
 TRAINING_ARGS="
   --num_epoch 200 \
   --batch_size 128 \
@@ -32,7 +32,7 @@ patch_size=4
 MODEL_ARGS="
   --model_name ${model_name} \
   --patch_size ${patch_size} \
-  --hidden_dropout_prob 0.1 \
+  --hidden_dropout_prob 0.0 \
   --attention_probs_dropout_prob 0.1 \
   --output_path ./output_model \
   --dropout_ratio 0.1 \
@@ -40,11 +40,11 @@ MODEL_ARGS="
   --model_name_or_path google/vit-base-patch16-224 \
 "
 
-is_wandb="online"   # ['disabled', 'online']
+is_wandb="disabled"   # ['disabled', 'online']
 WANDB_ARGS="
 --is_wandb ${is_wandb} \
 --project_name lignex1_vit_cifar100 \
---exp_name server05_gpu23_${dataset}_${model_name}${patch_size}_tp${tp_size}_lr${lr}_noOptimization \
+--exp_name server05_gpu12_${dataset}_${model_name}${patch_size}_tp${tp_size}_lr${lr}_noOptimization_fp32 \
 --wandb_save_dir /media/dataset1/lig_jinlovespho/log/colAI \
 "
 
@@ -56,6 +56,6 @@ DISTRIBUTED_ARGS="
   --nproc_per_node ${GPUNUM} \
 "
 
-CUDA_VISIBLE_DEVICES=2,3 torchrun ${DISTRIBUTED_ARGS} vit_train_demo.py ${TRAINING_ARGS} ${PARALLEL_ARGS} ${MODEL_ARGS} ${DATA_ARGS} ${WANDB_ARGS}
+CUDA_VISIBLE_DEVICES=1,2 torchrun ${DISTRIBUTED_ARGS} vit_train_demo.py ${TRAINING_ARGS} ${PARALLEL_ARGS} ${MODEL_ARGS} ${DATA_ARGS} ${WANDB_ARGS}
 # CUDA_VISIBLE_DEVICES=5,6 colossalai run ${DISTRIBUTED_ARGS} --master_port 29505 vit_train_demo.py ${TRAINING_ARGS} ${PARALLEL_ARGS} ${MODEL_ARGS} ${DATA_ARGS} ${WANDB_ARGS}
 

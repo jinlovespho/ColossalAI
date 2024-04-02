@@ -4,6 +4,9 @@ import argparse
 def parse_demo_args():
     parser = argparse.ArgumentParser()
 
+    parser.add_argument('--lr_scheduler', type=str, default='cosine')
+    parser.add_argument('--label_smoothing', action='store_true' )
+    parser.add_argument('--criterion', type=str, default='ce')
     parser.add_argument('--is_wandb', type=str)
     parser.add_argument('--hidden_dropout_prob', type=float)
     parser.add_argument('--attention_probs_dropout_prob', type=float)

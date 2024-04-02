@@ -348,7 +348,8 @@ class DeviceMesh:
                 # skip duplicated process group creation
                 if ranks_in_same_group in duplicate_check_list:
                     continue
-
+                
+                # breakpoint()
                 # create the process group
                 pg_handler = dist.new_group(ranks=ranks_in_same_group, backend=self._dist_backend)
 

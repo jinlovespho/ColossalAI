@@ -1,5 +1,22 @@
 import re
 
+import sys
+import pdb
+
+class ForkedPdb(pdb.Pdb):
+    """
+    PDB Subclass for debugging multi-processed code
+    Suggested in: https://stackoverflow.com/questions/4716533/how-to-attach-debugger-to-a-python-subproccess
+    """
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
+        try:
+            sys.stdin = open('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
+        finally:
+            sys.stdin = _stdin
+            
+
 
 def get_obj_list_element(obj, attr: str):
     r"""
@@ -81,9 +98,10 @@ def setattr_(obj, attr: str, value, ignore: bool = False):
     """
 
     attrs = attr.split(".")
-    for a in attrs[:-1]:
+    for a in attrs[:-1]:        # attrs 의 마지막 원소 빼고 for문으로 하나씩 받아오기
         try:
-            obj = get_obj_list_element(obj, a)
+            obj = get_obj_list_element(obj, a)      # 가장 하위 sub module 가져와 feel 이해 O 
+            # ForkedPdb().set_trace()
         except AttributeError:
             if ignore:
                 return
@@ -100,10 +118,10 @@ def getattr_(obj, attr: str, ignore: bool = False):
         attr (str): The multi level attr to set
         ignore (bool): Whether to ignore when the attr doesn't exist
     """
-
     attrs = attr.split(".")
     for a in attrs:
         try:
+            # ForkedPdb().set_trace()
             obj = get_obj_list_element(obj, a)
         except AttributeError:
             if ignore:

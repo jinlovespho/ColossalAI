@@ -149,6 +149,7 @@ def evaluate_model(
     accum_correct = torch.zeros(1, device=torch.cuda.current_device())
 
     for batch in eval_dataloader:
+        # breakpoint()
         batch = move_to_cuda(batch, torch.cuda.current_device())
         loss, outputs = run_forward_backward(model, None, criterion, iter([batch]), booster)
 
@@ -187,8 +188,8 @@ def evaluate_model(
         )
 
 def main():
+    # breakpoint()
     
-    # ForkedPdb().set_trace()
     args = parse_demo_args()
 
     # Launch ColossalAI
@@ -196,6 +197,17 @@ def main():
     coordinator = DistCoordinator()
     world_size = coordinator.world_size
     print('world size: ', world_size)
+    
+    # ForkedPdb().set_trace()
+    
+    if coordinator.is_master():
+        print('master')
+        print(coordinator.local_rank)
+    else:
+        print('not master')
+        print(coordinator.local_rank)
+    
+    # breakpoint()
 
     # Manage loggers
     disable_existing_loggers()
@@ -304,7 +316,7 @@ def main():
             num_microbatches=None,
             microbatch_size=1,
             enable_all_optimization=False,
-            precision="fp16",
+            precision="fp32",
             initial_scale=1,
         )
     else:

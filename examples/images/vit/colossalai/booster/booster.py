@@ -132,10 +132,13 @@ class Booster:
         """
         # TODO(FrankLeeeee): consider multi-model and multi-optimizer case
         # TODO(FrankLeeeee): consider multi-dataloader case
+        
+        # breakpoint()
+        
         pretrained_path = pretrained_utils.get_pretrained_path(model)
         # transform model for mixed precision
         if self.plugin:
-            model, optimizer, criterion, dataloader, lr_scheduler = self.plugin.configure(
+            model, optimizer, criterion, dataloader, lr_scheduler = self.plugin.configure(          # 여기서 policy 가 configure 된다 ! 
                 model, optimizer, criterion, dataloader, lr_scheduler
             )
 

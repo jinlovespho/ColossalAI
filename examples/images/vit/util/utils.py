@@ -1,15 +1,16 @@
 import torch.nn as nn
-import torchvision
 import torchvision.transforms as transforms
+from torchvision import datasets
 
-from util.autoaugment import CIFAR10Policy, SVHNPolicy
+from util.autoaugment import CIFAR10Policy, SVHNPolicy, ImageNetPolicy
 from util.criterions import LabelSmoothingCrossEntropyLoss
 from util.da import RandomCropPaste
+
 
 def get_criterion(args):
     if args.criterion=="ce":
         if args.label_smoothing:
-            criterion = LabelSmoothingCrossEntropyLoss(args.num_classes, smoothing=args.smoothing)
+            criterion = LabelSmoothingCrossEntropyLoss(args.num_class, smoothing=0.1)
         else:
             criterion = nn.CrossEntropyLoss()
     else:
@@ -17,23 +18,61 @@ def get_criterion(args):
 
     return criterion
 
+
 def get_model(args):
-    if args.model_name == 'vit':
+    if args.model_name == 'vit_tiny':
         from networks.vit import ViT
         breakpoint()
+        print('vit_tiny')
         net = ViT(
-            args.in_c, 
-            args.num_classes, 
-            img_size=args.size, 
-            patch=args.patch, 
-            dropout=args.dropout, 
-            mlp_hidden=args.mlp_hidden,
-            num_layers=args.num_layers,
-            hidden=args.hidden,
-            head=args.head,
-            is_cls_token=args.is_cls_token
+            in_c=3,
+            num_classes=args.num_class, 
+            img_size=args.img_size,
+            patch_size=args.patch_size, 
+            dropout=args.dropout_ratio, 
+            mlp_hidden=768,
+            num_layers=12,
+            hidden=192,
+            head=3,
+            is_cls_token=True
             )
         
+    # JINLOVESPHO
+    elif args.model_name == 'vit_small':
+        from networks.vit import ViT
+        breakpoint()
+        print('vit_small')
+        net = ViT(
+            in_c=3,
+            num_classes=args.num_class, 
+            img_size=args.img_size,
+            patch_size=args.patch_size, 
+            dropout=args.dropout_ratio, 
+            mlp_hidden=1536,
+            num_layers=12,
+            hidden=384,
+            head=6,
+            is_cls_token=True
+            )
+    
+    # JINLOVESPHO
+    elif args.model_name == 'vit_base':
+        from networks.vit import ViT
+        # breakpoint()
+        print('vit_base')
+        net = ViT(
+            in_c=3,
+            num_classes=args.num_class, 
+            img_size=args.img_size,
+            patch_size=args.patch_size, 
+            dropout=args.dropout_ratio, 
+            mlp_hidden=3072,
+            num_layers=12,
+            hidden=768,
+            head=12,
+            is_cls_token=True
+            )
+ 
     # JINLOVESPHO
     elif args.model_name == 'vit_tiny_8':
         from networks.vit import ViT
@@ -122,39 +161,57 @@ def get_model(args):
 
     return net
 
-def get_transform(**kwargs):
+def get_transform(args):
     train_transform = []
     test_transform = []
-    train_transform += [
-        transforms.RandomCrop(size=kwargs['size'], padding=kwargs['padding'])
-    ]
-     
-    train_transform.append(CIFAR10Policy())
     
-    train_transform += [
-        transforms.ToTensor(),
-        transforms.Normalize(mean=kwargs['mean'], std=kwargs['std'])
-    ]
-    
-    test_transform += [
-        transforms.ToTensor(),
-        transforms.Normalize(mean=kwargs['mean'], std=kwargs['std'])
-    ]
+    if args.dataset == 'cifar100':
+        train_transform += [transforms.RandomCrop(size=args.size, padding=args.padding)] 
+        train_transform += [transforms.RandomHorizontalFlip()]
+        train_transform.append(CIFAR10Policy())
+        train_transform += [transforms.ToTensor(), transforms.Normalize(mean=args.mean, std=args.std) ]
+        
+        test_transform += [transforms.ToTensor(), transforms.Normalize(mean=args.mean, std=args.std)]
+
+    elif args.dataset == 'imagenet':
+        mean, std = [0.4377, 0.4438, 0.4728], [0.1980, 0.2010, 0.1970]
+        train_transform += [transforms.Resize((args.img_size, args.img_size))]
+        train_transform += [transforms.RandomCrop(size=args.crop_size, padding=4, pad_if_needed=False)]
+        train_transform += [transforms.RandomHorizontalFlip()]
+        train_transform.append(ImageNetPolicy())
+        
+        train_transform += [transforms.ToTensor(), transforms.Normalize(mean=mean, std=std)]   
+        test_transform += [transforms.Resize((args.img_size, args.img_size))]
+        test_transform += [transforms.RandomCrop(size=args.crop_size, padding=4, pad_if_needed=True)]          
+        test_transform += [transforms.ToTensor(), transforms.Normalize(mean=mean, std=std)]
 
     train_transform = transforms.Compose(train_transform)
     test_transform = transforms.Compose(test_transform)
 
     return train_transform, test_transform
-    
 
-def get_dataset(data_dir):
-    
-    kwargs={'in_c':3, 'num_classes':100, 'size':32, 'padding':4, 'mean':[0.5071, 0.4867, 0.4408], 'std':[0.2675, 0.2565, 0.2761]}
-    train_transform, test_transform = get_transform(**kwargs)
-    train_ds = torchvision.datasets.CIFAR100(data_dir, train=True, transform=train_transform, download=True)
-    val_ds = torchvision.datasets.CIFAR100(data_dir, train=False, transform=test_transform, download=True)
+def get_dataset(args):
+    if args.dataset == 'cifar100':
+        breakpoint()
+        print('DATASET: cifar100')
+        args.in_c = 3
+        args.num_classes=100
+        args.size = 32
+        args.padding = 4
+        args.mean, args.std = [0.5071, 0.4867, 0.4408], [0.2675, 0.2565, 0.2761]
+        train_transform, test_transform = get_transform(args)
+        train_ds = datasets.CIFAR100(args.data_dir, train=True, transform=train_transform, download=True)
+        val_ds = datasets.CIFAR100(args.data_dir, train=False, transform=test_transform, download=True)
 
-    
+    elif args.dataset == 'imagenet':
+        # breakpoint()
+        print('DATASET: imagenet')
+        args.num_classes = 1000
+        args.crop_size = 224
+        train_transform, val_transform = get_transform(args)
+        train_ds = datasets.ImageNet(root=args.data_dir, split='train', transform=train_transform )
+        val_ds = datasets.ImageNet(root=args.data_dir, split='val', transform=val_transform )
+            
     return train_ds, val_ds
 
 def get_experiment_name(args):

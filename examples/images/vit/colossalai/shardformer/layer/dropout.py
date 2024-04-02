@@ -9,6 +9,22 @@ from .utils import create_randomizer_with_offset
 
 __all__ = ["DropoutForParallelInput", "DropoutForReplicatedInput"]
 
+import sys
+import pdb
+
+class ForkedPdb(pdb.Pdb):
+    """
+    PDB Subclass for debugging multi-processed code
+    Suggested in: https://stackoverflow.com/questions/4716533/how-to-attach-debugger-to-a-python-subproccess
+    """
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
+        try:
+            sys.stdin = open('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
+        finally:
+            sys.stdin = _stdin
+            
 
 class DropoutForParallelInput(ParallelModule, nn.Dropout):
     """
@@ -74,8 +90,10 @@ class DropoutForReplicatedInput(ParallelModule, nn.Dropout):
         """
         Create a Dropout1D layer from a native dropout layer.
         """
+        # 기존 nn.Dropout(p=, inplace=) 인자가 p 와 inplace 두 개가 있기에, 여기서 수동으로 만들어준 것
         p = module.p
         inplace = module.inplace
+        # ForkedPdb().set_trace()
         return DropoutForReplicatedInput(p=p, inplace=inplace, process_group=process_group)
 
     def forward(self, input):

@@ -34,6 +34,23 @@ from colossalai.zero.low_level import LowLevelZeroOptimizer
 
 from .pp_plugin_base import PipelinePluginBase
 
+import sys
+import pdb
+
+class ForkedPdb(pdb.Pdb):
+    """
+    PDB Subclass for debugging multi-processed code
+    Suggested in: https://stackoverflow.com/questions/4716533/how-to-attach-debugger-to-a-python-subproccess
+    """
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
+        try:
+            sys.stdin = open('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
+        finally:
+            sys.stdin = _stdin
+            
+
 DP_AXIS, PP_AXIS, TP_AXIS = 0, 1, 2
 
 PRECISION_TORCH_TYPE = {"fp16": torch.float16, "fp32": torch.float32, "bf16": torch.bfloat16}
@@ -57,6 +74,7 @@ class HybridParallelModule(ModelWrapper, AMPModelMixin):
         ddp_config: dict,
         custom_policy: Policy,
     ) -> None:
+        # breakpoint()
         self.stage_manager = shard_config.pipeline_stage_manager
         self.shard_config = shard_config
         self.dp_group = dp_group
@@ -64,6 +82,7 @@ class HybridParallelModule(ModelWrapper, AMPModelMixin):
         self.use_dpp = use_ddp
         self.require_grad_sync = True
 
+        # ForkedPdb().set_trace()
         shardformer = ShardFormer(shard_config)
         if custom_policy is not None:
             assert isinstance(custom_policy, object)
@@ -1028,10 +1047,11 @@ class HybridParallelPlugin(PipelinePluginBase):
         self.dp_group = self.pg_mesh.get_group_along_axis(DP_AXIS)
         self.pp_group = self.pg_mesh.get_group_along_axis(PP_AXIS)
 
+        # breakpoint()
         self.shard_config = ShardConfig(
             tensor_parallel_process_group=self.tp_group,
             pipeline_stage_manager=self.stage_manager,
-            enable_tensor_parallelism=self.tp_size > 1,
+            enable_tensor_parallelism=self.tp_size > 1,     # self.tp_size > 1 이면, tensorparallelism True.
             enable_all_optimization=self.enable_all_optimization,
             enable_fused_normalization=self.enable_fused_normalization,
             enable_flash_attention=self.enable_flash_attention,
@@ -1103,7 +1123,8 @@ class HybridParallelPlugin(PipelinePluginBase):
         dataloader: Optional[DataLoader] = None,
         lr_scheduler: Optional[LRScheduler] = None,
     ) -> Tuple[Module, OptimizerWrapper, Callable, DataLoader, LRScheduler]:
-        param_info = get_param_info(optimizer)
+        # breakpoint()
+        param_info = get_param_info(optimizer)      # param_info.keys(): dict_keys(['param_groups', 'param2id', 'id2param', 'param2shape'])
         if not isinstance(model, ModelWrapper):
             use_ddp = self.dp_size > 1 and self.pp_size == 1 and self.zero_stage == 0
             model = HybridParallelModule(
@@ -1116,7 +1137,7 @@ class HybridParallelPlugin(PipelinePluginBase):
                 ddp_config=self.ddp_config,
                 custom_policy=self.custom_policy,
             )
-        if optimizer is not None and not isinstance(optimizer, OptimizerWrapper):
+        if optimizer is not None and not isinstance(optimizer, OptimizerWrapper):   # 여기 실행
             if self.zero_stage == 0:
                 if self.precision in ["fp16", "bf16"]:
                     optimizer = HybridParallelAMPOptimizer(
@@ -1130,7 +1151,7 @@ class HybridParallelPlugin(PipelinePluginBase):
                         tp_process_group=self.tp_group,
                         **self.amp_config,
                     )
-                else:
+                else:   # 여기 실행
                     optimizer = HybridParallelNaiveOptimizer(
                         optimizer,
                         model,

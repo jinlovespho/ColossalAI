@@ -13,6 +13,24 @@ from .layout import Layout
 from .layout_converter import LayoutConverter
 from .sharding_spec import ShardingSpec
 
+import sys
+import pdb
+
+class ForkedPdb(pdb.Pdb):
+    """
+    PDB Subclass for debugging multi-processed code
+    Suggested in: https://stackoverflow.com/questions/4716533/how-to-attach-debugger-to-a-python-subproccess
+    """
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
+        try:
+            sys.stdin = open('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
+        finally:
+            sys.stdin = _stdin
+            
+
+
 layout_converter = LayoutConverter()
 
 
@@ -126,6 +144,7 @@ def distribute_tensor(tensor: torch.Tensor, device_mesh: DeviceMesh, sharding_sp
     # hack some tensor methods
     _hijack_detach_and_clone(sharded_tensor)
 
+    ForkedPdb().set_trace()
     return sharded_tensor
 
 def init_as_dtensor(tensor: torch.Tensor, device_mesh: DeviceMesh, sharding_spec: ShardingSpec, global_shape: torch.Size) -> torch.Tensor:
@@ -200,17 +219,20 @@ def shard_rowwise(
         torch.Tensor: The sharded tensor.
     """
     # if the group_or_device_mesh is None, we shard the tensor with respect to the global process group
-    if group_or_device_mesh is None:
+
+    if group_or_device_mesh is None:    # 실행 X
         group_or_device_mesh = dist.GroupMember.WORLD
 
-    if isinstance(group_or_device_mesh, ProcessGroup):
+    if isinstance(group_or_device_mesh, ProcessGroup):  # 실행 O
         device_mesh = DeviceMesh.from_process_group(group_or_device_mesh)
+        # ForkedPdb().set_trace()
     else:
         assert len(group_or_device_mesh.shape) == 1, "Only 1D DeviceMesh is accepted for row-wise sharding."
         device_mesh = group_or_device_mesh
 
-    sharding_spec = ShardingSpec(dim_size=tensor.dim(), dim_partition_dict={0: [0]})
-
+    sharding_spec = ShardingSpec(dim_size=tensor.dim(), dim_partition_dict={0: [0]})    # 여기를 거치면 [S0,R] 처럼 나온다.
+    # ForkedPdb().set_trace()
+    
     return distribute_tensor(tensor, device_mesh, sharding_spec)
 
 

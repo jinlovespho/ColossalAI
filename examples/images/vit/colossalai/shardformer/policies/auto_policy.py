@@ -5,6 +5,23 @@ import torch.nn as nn
 
 from .base_policy import Policy
 
+import sys
+import pdb
+
+class ForkedPdb(pdb.Pdb):
+    """
+    PDB Subclass for debugging multi-processed code
+    Suggested in: https://stackoverflow.com/questions/4716533/how-to-attach-debugger-to-a-python-subproccess
+    """
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
+        try:
+            sys.stdin = open('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
+        finally:
+            sys.stdin = _stdin
+            
+            
 __all__ = ["PolicyLocation", "get_autopolicy", "import_policy"]
 
 
@@ -26,6 +43,20 @@ class PolicyLocation:
 # as each policy file imports its own model zoo library
 # we will allow the user to only import the policy file needed
 _POLICY_LIST = {
+    
+    # JINLOVESPHO
+    # vit_split_head 
+    'networks.vit.ViT': PolicyLocation(file_name='my_vit', class_name='MyViTPolicy'),
+    'networks.vit_tiny_crossvit.ViT_Tiny_CrossVit': PolicyLocation(file_name='my_vit_split_head', class_name='MyViTSplitHeadPolicy'),
+
+    # ViT
+    "transformers.models.vit.modeling_vit.ViTModel": PolicyLocation(file_name="vit", class_name="ViTModelPolicy"),
+    "transformers.models.vit.modeling_vit.ViTForImageClassification": PolicyLocation(
+        file_name="vit", class_name="ViTForImageClassificationPolicy"
+    ),
+    "transformers.models.vit.modeling_vit.ViTForMaskedImageModeling": PolicyLocation(
+        file_name="vit", class_name="ViTForMaskedImageModelingPolicy"
+    ),
     # BERT
     "transformers.models.bert.modeling_bert.BertModel": PolicyLocation(file_name="bert", class_name="BertModelPolicy"),
     "transformers.models.bert.modeling_bert.BertForPreTraining": PolicyLocation(
@@ -95,14 +126,6 @@ _POLICY_LIST = {
     ),
     "transformers.models.gptj.modeling_gptj.GPTJForSequenceClassification": PolicyLocation(
         file_name="gptj", class_name="GPTJForSequenceClassificationPolicy"
-    ),
-    # ViT
-    "transformers.models.vit.modeling_vit.ViTModel": PolicyLocation(file_name="vit", class_name="ViTModelPolicy"),
-    "transformers.models.vit.modeling_vit.ViTForImageClassification": PolicyLocation(
-        file_name="vit", class_name="ViTForImageClassificationPolicy"
-    ),
-    "transformers.models.vit.modeling_vit.ViTForMaskedImageModeling": PolicyLocation(
-        file_name="vit", class_name="ViTForMaskedImageModelingPolicy"
     ),
     # OPT
     "transformers.models.opt.modeling_opt.OPTModel": PolicyLocation(file_name="opt", class_name="OPTModelPolicy"),
@@ -191,6 +214,7 @@ def import_policy(policy_location: PolicyLocation) -> Policy:
     """
     module_name = f"colossalai.shardformer.policies.{policy_location.file_name}"
     module = importlib.import_module(module_name)
+    # ForkedPdb().set_trace()
     return getattr(module, policy_location.class_name)
 
 
@@ -215,13 +239,16 @@ def get_autopolicy(model: nn.Module) -> Policy:
     Return:
         :class:`Policy`: The auto policy for the model
     """
+    # 여기 아래 full_name(모델) 과 policy_location 은 위 _POLICY_LIST 에서 받아오는 것.
     full_name = _fullname(model)
-    policy_location = _POLICY_LIST.get(full_name, None)
+    policy_location = _POLICY_LIST.get(full_name, None)     # 딕셔너리 내장 기능. get(key,value)를 하고, key가 없으면 자동으로 value를 return 한다.
+    # ForkedPdb().set_trace()
 
     if policy_location is None:
         raise NotImplementedError(
             f"Auto policy for {model.__class__.__qualname__} is not implemented\n. Supported models are {list(_POLICY_LIST.keys())}"
         )
     else:
-        policy = import_policy(policy_location)
+        policy = import_policy(policy_location)     # 위에 _POLICY_LIST에 잘 설정해주면, policy에 내가 원하는 policy class 가 담긴다
+    # ForkedPdb().set_trace()
     return policy()

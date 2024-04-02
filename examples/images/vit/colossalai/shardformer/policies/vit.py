@@ -16,6 +16,23 @@ from ..modeling.vit import (
 )
 from .base_policy import ModulePolicyDescription, Policy, SubModuleReplacementDescription
 
+import sys
+import pdb
+
+class ForkedPdb(pdb.Pdb):
+    """
+    PDB Subclass for debugging multi-processed code
+    Suggested in: https://stackoverflow.com/questions/4716533/how-to-attach-debugger-to-a-python-subproccess
+    """
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
+        try:
+            sys.stdin = open('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
+        finally:
+            sys.stdin = _stdin
+            
+
 __all__ = ["ViTPolicy", "ViTModelPolicy", "ViTForImageClassificationPolicy", "ViTForMaskedImageModelingPolicy"]
 
 
@@ -28,13 +45,16 @@ class ViTPolicy(Policy):
 
     def module_policy(self) -> Dict[Union[str, nn.Module], ModulePolicyDescription]:
         from transformers.models.vit.modeling_vit import ViTEmbeddings, ViTLayer, ViTOutput, ViTSelfAttention
-
+        
+        # ForkedPdb().set_trace()
         policy = {}
 
+        # 실행 X
         if self.shard_config.enable_sequence_parallelism:
             self.shard_config.enable_sequence_parallelism = False
             warnings.warn("Vit doesn't support sequence parallelism now, will ignore the sequence parallelism flag.")
 
+        # 실행 O
         if self.shard_config.enable_tensor_parallelism:
             policy[ViTEmbeddings] = ModulePolicyDescription(
                 attribute_replacement={},
@@ -46,6 +66,7 @@ class ViTPolicy(Policy):
                     )
                 ],
             )
+            # ForkedPdb().set_trace()
 
             policy[ViTLayer] = ModulePolicyDescription(
                 attribute_replacement={
@@ -94,9 +115,11 @@ class ViTPolicy(Policy):
                     ),
                 ],
             )
+            
+            # ForkedPdb().set_trace()
 
         # use flash attention
-        if self.shard_config.enable_flash_attention:
+        if self.shard_config.enable_flash_attention:    # 실행 X
             self.append_or_create_method_replacement(
                 description={
                     "forward": get_vit_flash_self_attention_forward(),
@@ -106,7 +129,7 @@ class ViTPolicy(Policy):
             )
 
         # use jit fused operator
-        if self.shard_config.enable_jit_fused:
+        if self.shard_config.enable_jit_fused:          # 실행 X
             self.append_or_create_method_replacement(
                 description={
                     "forward": get_jit_fused_vit_output_forward(),
@@ -115,6 +138,7 @@ class ViTPolicy(Policy):
                 policy=policy,
                 target_key=ViTOutput,
             )
+        # ForkedPdb().set_trace()
         return policy
 
     def new_model_class(self):
@@ -163,7 +187,7 @@ class ViTModelPolicy(ViTPolicy):
         from transformers.models.vit.modeling_vit import ViTModel
 
         policy = super().module_policy()
-
+        
         if self.shard_config.pipeline_stage_manager is not None:
             self.set_pipeline_forward(model_cls=ViTModel, pipeline_forward=ViTModel_pipeline_forward, policy=policy)
         return policy
@@ -186,7 +210,8 @@ class ViTForImageClassificationPolicy(ViTPolicy):
     def module_policy(self):
         from transformers.models.vit.modeling_vit import ViTForImageClassification, ViTModel
 
-        policy = super().module_policy()
+        policy = super().module_policy()        # 부모의 policy를 먼저 가져오고, 아래에 policy.update()으로 new policy를 추가해준다.
+        # ForkedPdb().set_trace()
         if self.shard_config.enable_tensor_parallelism:
             new_item = {
                 ViTForImageClassification: ModulePolicyDescription(
@@ -197,8 +222,10 @@ class ViTForImageClassificationPolicy(ViTPolicy):
                     ]
                 )
             }
-            policy.update(new_item)
+            # ForkedPdb().set_trace()
+            policy.update(new_item)     # update는 내장 파이썬 dictionary 함수
 
+        # 실행 X
         if self.shard_config.pipeline_stage_manager is not None:
             self.set_pipeline_forward(model_cls=ViTModel, pipeline_forward=ViTModel_pipeline_forward, policy=policy)
             self.set_pipeline_forward(

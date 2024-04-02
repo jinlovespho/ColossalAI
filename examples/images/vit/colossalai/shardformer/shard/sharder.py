@@ -12,6 +12,22 @@ from ..policies.base_policy import Policy, SubModuleReplacementDescription
 from .shard_config import ShardConfig
 from .utils import set_tensors_to_none
 
+import sys
+import pdb
+
+class ForkedPdb(pdb.Pdb):
+    """
+    PDB Subclass for debugging multi-processed code
+    Suggested in: https://stackoverflow.com/questions/4716533/how-to-attach-debugger-to-a-python-subproccess
+    """
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
+        try:
+            sys.stdin = open('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
+        finally:
+            sys.stdin = _stdin
+            
 __all__ = ["ModelSharder", "shard_model"]
 
 
@@ -26,21 +42,25 @@ class ModelSharder(object):
     """
 
     def __init__(self, model: nn.Module, policy: Policy, shard_config: ShardConfig = None) -> None:
+        # ForkedPdb().set_trace()
         self.model = model
         self.shard_config = shard_config
-        self.policy = get_autopolicy(self.model) if policy is None else policy
+        self.policy = get_autopolicy(self.model) if policy is None else policy      # policy object 가 여기 들어온다.
+        # ForkedPdb().set_trace()
+        
 
     def shard(self) -> List[Dict[int, Tensor]]:
         r"""
         Shard the model according to the policy
         """
-        self.policy.set_model(self.model)
+        # ForkedPdb().set_trace()
+        self.policy.set_model(self.model)                   # Policy class 멤버 변수 self.model 에 model 등록
         self.policy.set_shard_config(self.shard_config)
         self._preprocess()
         # get shared params before release unheld layers, this avoid misjudgment of shared params (None is None)
         shared_params = self.policy.get_shared_params()
         held_layers = self._release_unheld_layers()
-        self._replace_module(include=held_layers)
+        self._replace_module(include=held_layers)       # 여기서 실제 shard 하는듯 
         self._materialize()
         self._postprocess()
         return shared_params
@@ -58,12 +78,15 @@ class ModelSharder(object):
         Args:
             model (:class:`torch.nn.Module`): The model to shard
         """
-        module_descriptions = self.policy.module_policy()
+        # ForkedPdb().set_trace()
+        module_descriptions = self.policy.module_policy()       # class ViTForImageClassificationPolicy(ViTPolicy):
+        # ForkedPdb().set_trace()
         for layer_cls, module_description in module_descriptions.items():
             attr_replacement = module_description.attribute_replacement
             param_replacement = module_description.param_replacement
             sub_module_replacement = module_description.sub_module_replacement
             method_replacement = module_description.method_replacement
+
             self._recursive_replace_layer(
                 self.model,
                 layer_cls,
@@ -96,9 +119,17 @@ class ModelSharder(object):
             sub_module_replacement ((List[SubModuleReplacementDescription]): The function list to get sub module shard information in policy
             include (Set[nn.Module], optional): The set of modules to keep on current device when pipeline parallel is enabled. Defaults to None
         """
+        # print(type(module))
+        # print(origin_cls)
+        # ForkedPdb().set_trace()
         if (isinstance(origin_cls, str) and origin_cls == module.__class__.__name__) or (
             module.__class__ == origin_cls
         ):
+            # 여기서 실제 바꿔치기가 일어나네
+            # origin_cls 에 해당하는 layer가 걸리도록 위에 if 문을 설정한 것.
+            print(type(module))
+            print(origin_cls)
+            # ForkedPdb().set_trace()
             if attr_replacement is not None:
                 self._replace_attr(module, attr_replacement)
 
@@ -111,7 +142,10 @@ class ModelSharder(object):
             if sub_module_replacement is not None:
                 self._replace_sub_module(module, sub_module_replacement, include)
 
+            # ForkedPdb().set_trace()
+            
         for name, child in module.named_children():
+            # ForkedPdb().set_trace() 
             self._recursive_replace_layer(
                 child,
                 origin_cls,
@@ -121,6 +155,8 @@ class ModelSharder(object):
                 sub_module_replacement,
                 include=include,
             )
+            
+        print('FINISHED RECURSION')
 
     def _replace_attr(
         self,
@@ -134,6 +170,7 @@ class ModelSharder(object):
             module (:class:`torch.nn.Module`): The object of layer to shard
             attr_replacement (Dict): The attribute dict to modify
         """
+        
         for k, v in attr_replacement.items():
             setattr_(module, k, v, ignore=True)
 
@@ -179,7 +216,8 @@ class ModelSharder(object):
 
             assert target_module is not None, "target_module should not be None"
 
-            native_sub_module = getattr_(org_layer, suffix, ignore=True)
+            native_sub_module = getattr_(org_layer, suffix, ignore=True)        # org_layer에서 suffix에 해당하는 layer을 가져오기
+            # ForkedPdb().set_trace()
             # Skip replacement if submodule is not kept by current device when pipeline parallel is enabled.
             if (include is not None) and (native_sub_module is not None) and (native_sub_module not in include):
                 continue
@@ -192,11 +230,14 @@ class ModelSharder(object):
             # just skip
             if description.ignore_if_not_exist and native_sub_module is None:
                 continue
-
+                
+            
+            # 여기서 기존 layer(native_sub_module)이 수정된 layer(target_module)로 바뀐다.
             try:
                 replace_layer = target_module.from_native_module(
                     native_sub_module, process_group=self.shard_config.tensor_parallel_process_group, **kwargs
                 )
+                # ForkedPdb().set_trace()
             except Exception as e:
                 raise RuntimeError(
                     f"Failed to replace {suffix} of type {native_sub_module.__class__.__qualname__}"

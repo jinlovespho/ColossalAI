@@ -12,6 +12,24 @@ from torch import Tensor
 from torch.distributed import ProcessGroup
 from torch.nn.parameter import Parameter
 
+import sys
+import pdb
+
+class ForkedPdb(pdb.Pdb):
+    """
+    PDB Subclass for debugging multi-processed code
+    Suggested in: https://stackoverflow.com/questions/4716533/how-to-attach-debugger-to-a-python-subproccess
+    """
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
+        try:
+            sys.stdin = open('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
+        finally:
+            sys.stdin = _stdin
+            
+
+
 from colossalai.lazy import LazyInitContext
 from colossalai.nn import init as init
 from colossalai.nn.layer.utils import divide
@@ -84,7 +102,8 @@ class Linear1D_Col(ParallelModule):
         bias_initializer: Callable = init.xavier_uniform_(a=1, scale=1),
     ):
         super().__init__()
-
+        
+        
         # Keep input parameters
         self.in_features = in_features
         self.out_features = out_features
@@ -95,6 +114,7 @@ class Linear1D_Col(ParallelModule):
         self.skip_bias_add = skip_bias_add
         self.device = device
         self.process_group = process_group
+        
 
         if skip_bias_add and not bias:
             raise ValueError("cannot skip bias addition if bias is None")
@@ -113,9 +133,14 @@ class Linear1D_Col(ParallelModule):
         if weight is None:
             factory_kwargs = {"device": device, "dtype": dtype}
             self.weight = Parameter(torch.empty(self.out_features, self.in_features, **factory_kwargs))
-        else:
+
+        else:   # 여기 실행 O
             weight.data = weight.data.to(device=device, dtype=dtype)
             self.weight = weight
+            
+        # ForkedPdb().set_trace()
+
+        # 실행 O
         if not is_distributed_tensor(self.weight):
             sharded_weight = shard_rowwise(self.weight.data, self.process_group)
             sharded_tensor_to_existing_param(sharded_weight, self.weight)
@@ -163,6 +188,7 @@ class Linear1D_Col(ParallelModule):
                 f"The size of out_features:{out_features} is not integer multiples of tensor parallel size: {tp_size}!"
             )
 
+        # ForkedPdb().set_trace()
         linear_1d = Linear1D_Col(
             in_features=in_features,
             out_features=out_features,

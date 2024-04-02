@@ -10,6 +10,23 @@ from ..policies.base_policy import Policy
 from .shard_config import ShardConfig
 from .sharder import ModelSharder
 
+import sys
+import pdb
+
+class ForkedPdb(pdb.Pdb):
+    """
+    PDB Subclass for debugging multi-processed code
+    Suggested in: https://stackoverflow.com/questions/4716533/how-to-attach-debugger-to-a-python-subproccess
+    """
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
+        try:
+            sys.stdin = open('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
+        finally:
+            sys.stdin = _stdin
+            
+
 # set CUDA_DEVICE_MAX_CONNECTIONS=1 to ensure that when communication and computation overlap, the order of core scheduling is correct
 os.environ["CUDA_DEVICE_MAX_CONNECTIONS"] = "1"
 
@@ -36,6 +53,7 @@ class ShardFormer:
     """
 
     def __init__(self, shard_config: ShardConfig):
+        # breakpoint()
         self.coordinator = DistCoordinator()
         self.shard_config = shard_config
 
@@ -50,6 +68,9 @@ class ShardFormer:
 
         Returns: the sharded model and the shared parameters
         """
+        # ForkedPdb().set_trace()
         sharder = ModelSharder(model=model, shard_config=self.shard_config, policy=policy)
+        # ForkedPdb().set_trace()
         shared_params = sharder.shard()
+        # ForkedPdb().set_trace()
         return model, shared_params

@@ -5,13 +5,13 @@ import torchsummary
 from networks.layers import TransformerEncoder
 
 class ViT(nn.Module):
-    def __init__(self, in_c:int=3, num_classes:int=10, img_size:int=32, patch:int=8, dropout:float=0., num_layers:int=7, hidden:int=384, mlp_hidden:int=384*4, head:int=8, is_cls_token:bool=True):
+    def __init__(self, in_c:int=3, num_classes:int=10, img_size:int=32, patch_size:int=8, dropout:float=0., num_layers:int=7, hidden:int=384, mlp_hidden:int=384*4, head:int=8, is_cls_token:bool=True):
         super(ViT, self).__init__()
         # hidden=384
 
-        self.patch = patch # number of patches in one row(or col)
+        self.patch_size = patch_size 
+        self.patch = img_size // self.patch_size
         self.is_cls_token = is_cls_token
-        self.patch_size = img_size//self.patch
         f = (img_size//self.patch)**2*3 # 48 # patch vec length
         num_tokens = (self.patch**2)+1 if self.is_cls_token else (self.patch**2)
 
@@ -27,6 +27,7 @@ class ViT(nn.Module):
 
 
     def forward(self, x):
+        # breakpoint()
         out = self._to_words(x)
         out = self.emb(out)
         if self.is_cls_token:

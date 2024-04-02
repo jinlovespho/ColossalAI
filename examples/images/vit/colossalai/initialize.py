@@ -44,6 +44,7 @@ def launch(
     Raises:
         Exception: Raise exception when config type is wrong
     """
+    # breakpoint()
     if rank == 0:
         warnings.warn("`config` is deprecated and will be removed soon.")
 

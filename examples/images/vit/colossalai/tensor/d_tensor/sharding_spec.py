@@ -6,6 +6,25 @@ from .misc import ShardingOutOfIndexError
 
 __all__ = ["DimSpec", "ShardingException", "ShardingSpec"]
 
+import sys
+import pdb
+
+class ForkedPdb(pdb.Pdb):
+    """
+    PDB Subclass for debugging multi-processed code
+    Suggested in: https://stackoverflow.com/questions/4716533/how-to-attach-debugger-to-a-python-subproccess
+    """
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
+        try:
+            sys.stdin = open('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
+        finally:
+            sys.stdin = _stdin
+            
+
+
+
 ALLGATHER_COST = 20
 SHARD_COST = 5
 STEP_PENALTY = 6
@@ -155,6 +174,7 @@ class ShardingSpec:
         self.dims = dim_size
         self.dim_partition_dict = dim_partition_dict
         self.sharding_sequence = sharding_sequence
+        # ForkedPdb().set_trace()
         if self.sharding_sequence is None:
             assert (
                 self.dim_partition_dict is not None
@@ -164,12 +184,13 @@ class ShardingSpec:
             )
             self.sharding_sequence = self.convert_dict_to_shard_sequence()
 
-        elif self.dim_partition_dict is None:
+        elif self.dim_partition_dict is None:   # 실행 X
             assert (
                 self.sharding_sequence is not None
             ), f"sharding_sequence should not be None, if dim_partition_dict is NoneType object."
             self.dim_partition_dict = self.convert_shard_sequence_to_dict()
-
+            
+        # ForkedPdb().set_trace()
         self._sanity_check()
 
     def _sanity_check(self):
