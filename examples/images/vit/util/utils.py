@@ -24,16 +24,20 @@ def get_model(args):
         from networks.vit import ViT
         breakpoint()
         print('vit_tiny')
+        args.num_layers=12
+        args.hidden=192
+        args.mlp_hidden=768
+        args.head=3
         net = ViT(
             in_c=3,
             num_classes=args.num_class, 
             img_size=args.img_size,
             patch_size=args.patch_size, 
             dropout=args.dropout_ratio, 
-            mlp_hidden=768,
-            num_layers=12,
-            hidden=192,
-            head=3,
+            mlp_hidden=args.mlp_hidden,
+            num_layers=args.num_layers,
+            hidden=args.hidden,
+            head=args.head,
             is_cls_token=True
             )
         
@@ -42,16 +46,20 @@ def get_model(args):
         from networks.vit import ViT
         breakpoint()
         print('vit_small')
+        args.num_layers=12
+        args.hidden=384
+        args.mlp_hidden=1536
+        args.head=6
         net = ViT(
             in_c=3,
             num_classes=args.num_class, 
             img_size=args.img_size,
             patch_size=args.patch_size, 
             dropout=args.dropout_ratio, 
-            mlp_hidden=1536,
-            num_layers=12,
-            hidden=384,
-            head=6,
+            mlp_hidden=args.mlp_hidden,
+            num_layers=args.num_layers,
+            hidden=args.hidden,
+            head=args.head,
             is_cls_token=True
             )
     
@@ -60,52 +68,89 @@ def get_model(args):
         from networks.vit import ViT
         # breakpoint()
         print('vit_base')
+        args.num_layers=12
+        args.hidden=768
+        args.mlp_hidden=3072
+        args.head=12
         net = ViT(
             in_c=3,
             num_classes=args.num_class, 
             img_size=args.img_size,
             patch_size=args.patch_size, 
             dropout=args.dropout_ratio, 
-            mlp_hidden=3072,
-            num_layers=12,
-            hidden=768,
-            head=12,
-            is_cls_token=True
-            )
- 
-    # JINLOVESPHO
-    elif args.model_name == 'vit_tiny_8':
-        from networks.vit import ViT
-        breakpoint()
-        net = ViT(
-            in_c = 3,
-            num_classes = args.num_class,
-            img_size = args.img_size ,
-            patch = args.patch_size,
-            dropout = args.dropout_ratio,
-            num_layers = 12,
-            hidden = 192,
-            mlp_hidden=192*4,
-            head=3,
-            is_cls_token=True
-        )
-    
-    # JINLOVESPHO
-    elif args.model_name == 'vit_parallel':
-        from networks.vit_parallel import ViT_Parallel
-        breakpoint()
-        net = ViT_Parallel(
-            args.in_c, 
-            args.num_classes, 
-            img_size=args.size, 
-            patch=args.patch, 
-            dropout=args.dropout, 
             mlp_hidden=args.mlp_hidden,
             num_layers=args.num_layers,
             hidden=args.hidden,
             head=args.head,
-            is_cls_token=args.is_cls_token
-            )  
+            is_cls_token=True
+            )
+        
+    # JINLOVESPHO
+    elif args.model_name == 'vit_splithead_tiny':
+        from networks.vit_splithead import ViT_SplitHead
+        # breakpoint()
+        print('vit_splithead_tiny')
+        args.num_layers=12
+        args.hidden=192
+        args.mlp_hidden=768
+        args.head=3
+        net = ViT_SplitHead(
+            in_c=3,
+            num_classes=args.num_class, 
+            img_size=args.img_size,
+            patch_size=args.patch_size, 
+            dropout=args.dropout_ratio, 
+            mlp_hidden=args.mlp_hidden,
+            num_layers=args.num_layers,
+            hidden=args.hidden,
+            head=args.head,
+            is_cls_token=True,
+            splithead_method=args.splithead_method
+            )
+        
+    # JINLOVESPHO
+    elif args.model_name == 'vit_splithead_small':
+        from networks.vit_splithead import ViT_SplitHead
+        # breakpoint()
+        print('vit_splithead_small')
+        args.num_layers=12
+        args.hidden=384
+        args.mlp_hidden=1536
+        args.head=6
+        net = ViT_SplitHead(
+            in_c=3,
+            num_classes=args.num_class, 
+            img_size=args.img_size,
+            patch_size=args.patch_size, 
+            dropout=args.dropout_ratio, 
+            mlp_hidden=args.mlp_hidden,
+            num_layers=args.num_layers,
+            hidden=args.hidden,
+            head=args.head,
+            is_cls_token=True
+            )
+    
+    # JINLOVESPHO
+    elif args.model_name == 'vit_splithead_base':
+        from networks.vit_splithead import ViT_SplitHead
+        # breakpoint()
+        print('vit_splithead_base')
+        args.num_layers=12
+        args.hidden=768
+        args.mlp_hidden=3072
+        args.head=12
+        net = ViT_SplitHead(
+            in_c=3,
+            num_classes=args.num_class, 
+            img_size=args.img_size,
+            patch_size=args.patch_size, 
+            dropout=args.dropout_ratio, 
+            mlp_hidden=args.mlp_hidden,
+            num_layers=args.num_layers,
+            hidden=args.hidden,
+            head=args.head,
+            is_cls_token=True
+            )
         
     # JINLOVESPHO
     elif args.model_name == 'vit_gyu':
@@ -192,7 +237,7 @@ def get_transform(args):
 
 def get_dataset(args):
     if args.dataset == 'cifar100':
-        breakpoint()
+        # breakpoint()
         print('DATASET: cifar100')
         args.in_c = 3
         args.num_classes=100

@@ -4,6 +4,7 @@ import argparse
 def parse_demo_args():
     parser = argparse.ArgumentParser()
 
+    parser.add_argument('--splithead_method', type=int, default=0)
     parser.add_argument('--lr_scheduler', type=str, default='cosine')
     parser.add_argument('--label_smoothing', action='store_true' )
     parser.add_argument('--criterion', type=str, default='ce')

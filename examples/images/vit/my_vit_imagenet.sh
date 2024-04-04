@@ -18,7 +18,7 @@ PARALLEL_ARGS="
 "
 
 lr=3e-3
-lr_scheduler="cosine"   # 'linear', 'cosine'
+lr_scheduler="linear"   # 'linear', 'cosine'
 batch_size=128
 TRAINING_ARGS="
   --num_epoch 200 \
@@ -44,17 +44,17 @@ is_wandb="online"   # ['disabled', 'online']
 WANDB_ARGS="
 --is_wandb ${is_wandb} \
 --project_name lignex1_vit_cifar100 \
---exp_name gpu3_tp${tp_size}_${dataset}_bs${batch_size}_${model_name}/${patch_size}_${lr_scheduler}lr${lr} \
+--exp_name gpu01_tp${tp_size}_${dataset}_bs${batch_size}_${model_name}/${patch_size}_${lr_scheduler}lr${lr} \
 --wandb_save_dir /media/dataset1/lig_jinlovespho/log/colAI \
 "
 
 # number of gpus to use
-GPUNUM=1
+GPUNUM=2
 
 DISTRIBUTED_ARGS="
   --standalone \
   --nproc_per_node ${GPUNUM} \
 "
 
-CUDA_VISIBLE_DEVICES=3 torchrun ${DISTRIBUTED_ARGS} my_vit.py ${TRAINING_ARGS} ${PARALLEL_ARGS} ${MODEL_ARGS} ${DATA_ARGS} ${WANDB_ARGS}
+CUDA_VISIBLE_DEVICES=0,1 torchrun ${DISTRIBUTED_ARGS} my_vit.py ${TRAINING_ARGS} ${PARALLEL_ARGS} ${MODEL_ARGS} ${DATA_ARGS} ${WANDB_ARGS}
 

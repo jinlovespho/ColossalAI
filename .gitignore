@@ -162,3 +162,4 @@ coverage.xml
 
 # JINLOVESPHO
 *.bin
+**/output_model 

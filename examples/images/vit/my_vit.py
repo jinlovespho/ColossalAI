@@ -19,12 +19,16 @@ from colossalai.logging import disable_existing_loggers, get_dist_logger
 from colossalai.nn.lr_scheduler import CosineAnnealingWarmupLR, LinearWarmupLR
 from colossalai.nn.optimizer import HybridAdam
 
+
 # JINLOVESPHO
 import sys
 import pdb
 from util.utils import get_dataset, get_model, get_criterion
 import wandb
 import numpy as np
+from thop import profile
+from torchprofile import profile_macs 
+from fvcore.nn import FlopCountAnalysis, flop_count_table, parameter_count_table
 
 class ForkedPdb(pdb.Pdb):
     """
@@ -215,14 +219,6 @@ def main():
     model = get_model(args)
     logger.info(f"Finish loading model from {args.model_name_or_path}", ranks=[0])
 
-    # setup wandb logger
-    wandb.init( 
-            project=args.project_name,
-            name=args.exp_name,
-            config=args,
-            dir=args.wandb_save_dir,
-            mode = args.is_wandb
-            )
 
     # Set plugin
     booster_kwargs = {}
@@ -275,9 +271,33 @@ def main():
         model=model, optimizer=optimizer, criterion=criterion, dataloader=train_dataloader, lr_scheduler=lr_scheduler
     )
     
-    print(f'DATASET: {args.dataset}, VIT_MODEL: {args.model_name}, LR_SCHEDULER: {args.lr_scheduler}')
-    print(f'DATASET: {args.dataset}, VIT_MODEL: {args.model_name}, LR_SCHEDULER: {args.lr_scheduler}')
-    print(f'DATASET: {args.dataset}, VIT_MODEL: {args.model_name}, LR_SCHEDULER: {args.lr_scheduler}')
+    # total number of parameters
+    args.params = sum(i.numel() for i in model.module.parameters())
+    
+    # macs, flops 
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    test_input = torch.rand(1,3,args.img_size,args.img_size).to(device)
+    args.macs_torchprofile = profile_macs(model.module, test_input )
+    args.macs_thop, args.thop_params = profile(model.module, inputs=(test_input, ))
+    # flops_fvcore = FlopCountAnalysis(model.module, test_input)
+    
+    # flop_count_table(args.flops_fvcore)
+    # parameter_count_table(model.module)
+    
+    print('=='*70)
+    print(f'DATASET: {args.dataset}, LR_SCHEDULER: {args.lr_scheduler}, VIT_MODEL: {args.model_name},  splithead_method: {args.splithead_method}')
+    print(f'DATASET: {args.dataset}, LR_SCHEDULER: {args.lr_scheduler}, VIT_MODEL: {args.model_name},  splithead_method: {args.splithead_method}')
+    print('=='*70)
+    breakpoint()
+
+    # setup wandb logger
+    wandb.init( 
+            project=args.project_name,
+            name=args.exp_name,
+            config=args,
+            dir=args.wandb_save_dir,
+            mode = args.is_wandb
+            )
     
     # Finetuning
     logger.info(f"Start Training", ranks=[0])

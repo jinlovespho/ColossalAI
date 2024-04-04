@@ -33,7 +33,7 @@ class ForkedPdb(pdb.Pdb):
             sys.stdin = _stdin
             
 
-class MyViTSplitHeadPolicy(Policy):
+class ViT_SplitHead_Policy(Policy):
     def config_sanity_check(self):
         pass
 

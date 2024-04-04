@@ -47,7 +47,7 @@ _POLICY_LIST = {
     # JINLOVESPHO
     # vit_split_head 
     'networks.vit.ViT': PolicyLocation(file_name='my_vit', class_name='MyViTPolicy'),
-    'networks.vit_tiny_crossvit.ViT_Tiny_CrossVit': PolicyLocation(file_name='my_vit_split_head', class_name='MyViTSplitHeadPolicy'),
+    'networks.vit_splithead.ViT_SplitHead': PolicyLocation(file_name='vit_splithead', class_name='ViT_SplitHead_Policy'),
 
     # ViT
     "transformers.models.vit.modeling_vit.ViTModel": PolicyLocation(file_name="vit", class_name="ViTModelPolicy"),
