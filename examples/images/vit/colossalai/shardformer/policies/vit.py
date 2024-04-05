@@ -78,22 +78,22 @@ class ViTPolicy(Policy):
                 param_replacement=[],
                 sub_module_replacement=[
                     SubModuleReplacementDescription(
-                        suffix="attention.attention.query",
+                        suffix="attention.attention.query",     # Linear(hidden,hidden)
                         target_module=col_nn.Linear1D_Col,
                     ),
                     SubModuleReplacementDescription(
-                        suffix="attention.attention.key",
+                        suffix="attention.attention.key",       # Linear(hidden,hidden)
                         target_module=col_nn.Linear1D_Col,
                     ),
                     SubModuleReplacementDescription(
-                        suffix="attention.attention.value",
+                        suffix="attention.attention.value",     # Linear(hidden,hidden)
                         target_module=col_nn.Linear1D_Col,
                     ),
                     SubModuleReplacementDescription(
                         suffix="attention.attention.dropout",
                         target_module=col_nn.DropoutForParallelInput,
                     ),
-                    SubModuleReplacementDescription(
+                    SubModuleReplacementDescription(            # Linear(hidden,hidden)
                         suffix="attention.output.dense",
                         target_module=col_nn.Linear1D_Row,
                     ),
@@ -101,15 +101,15 @@ class ViTPolicy(Policy):
                         suffix="attention.output.dropout",
                         target_module=col_nn.DropoutForReplicatedInput,
                     ),
-                    SubModuleReplacementDescription(
-                        suffix="intermediate.dense",
+                    SubModuleReplacementDescription(            
+                        suffix="intermediate.dense",                # Linear(hidden, 4*hidden)
                         target_module=col_nn.Linear1D_Col,
                     ),
-                    SubModuleReplacementDescription(
+                    SubModuleReplacementDescription(                # Linear(4*hidden, hidden)
                         suffix="output.dense",
                         target_module=col_nn.Linear1D_Row,
                     ),
-                    SubModuleReplacementDescription(
+                    SubModuleReplacementDescription(                # Dropout()
                         suffix="output.dropout",
                         target_module=col_nn.DropoutForReplicatedInput,
                     ),
@@ -216,7 +216,7 @@ class ViTForImageClassificationPolicy(ViTPolicy):
             new_item = {
                 ViTForImageClassification: ModulePolicyDescription(
                     sub_module_replacement=[
-                        SubModuleReplacementDescription(
+                        SubModuleReplacementDescription(        # classifier -> Linear(384,100)
                             suffix="classifier", target_module=Linear1D_Col, kwargs=dict(gather_output=True)
                         )
                     ]
@@ -224,6 +224,7 @@ class ViTForImageClassificationPolicy(ViTPolicy):
             }
             # ForkedPdb().set_trace()
             policy.update(new_item)     # update는 내장 파이썬 dictionary 함수
+            # ForkedPdb().set_trace()
 
         # 실행 X
         if self.shard_config.pipeline_stage_manager is not None:

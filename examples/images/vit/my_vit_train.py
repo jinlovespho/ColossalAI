@@ -29,7 +29,10 @@ import numpy as np
 from thop import profile
 from torchprofile import profile_macs 
 from fvcore.nn import FlopCountAnalysis, flop_count_table, parameter_count_table
+import os 
+import time
 
+# ForkedPdb().set_trace()
 class ForkedPdb(pdb.Pdb):
     """
     PDB Subclass for debugging multi-processed code
@@ -71,6 +74,8 @@ def run_forward_backward(
         batch = next(data_iter)
         batch = move_to_cuda(batch, torch.cuda.current_device())
         outputs = model(batch[0])
+        # ForkedPdb().set_trace()
+        
         loss = criterion(outputs, batch[1])
         if optimizer is not None:
             booster.backward(loss, optimizer)
@@ -118,7 +123,9 @@ def train_epoch(
             
             lr = lr_scheduler.get_last_lr()
             wandb.log( {'lr':lr[0]} )
-            
+
+                
+    # ForkedPdb().set_trace()     
     train_avg_loss = np.mean(train_avg_loss_lst)
     wandb.log( {'train_avg_loss':train_avg_loss } )
     
@@ -160,7 +167,8 @@ def evaluate_model(
             labels = batch[1]
             total_num += batch[1].shape[0]
             accum_correct += torch.sum(preds == labels)
-
+                
+    # ForkedPdb().set_trace()
     dist.all_reduce(accum_loss)
     dist.all_reduce(total_num)
     dist.all_reduce(accum_correct)
@@ -276,9 +284,9 @@ def main():
     
     # macs, flops 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    test_input = torch.rand(1,3,args.img_size,args.img_size).to(device)
-    args.macs_torchprofile = profile_macs(model.module, test_input )
-    args.macs_thop, args.thop_params = profile(model.module, inputs=(test_input, ))
+    # test_input = torch.rand(1,3,args.img_size,args.img_size).to(device)
+    # args.macs_torchprofile = profile_macs(model.module, test_input )
+    # args.macs_thop, args.thop_params = profile(model.module, inputs=(test_input, ))
     # flops_fvcore = FlopCountAnalysis(model.module, test_input)
     
     # flop_count_table(args.flops_fvcore)
@@ -288,8 +296,9 @@ def main():
     print(f'DATASET: {args.dataset}, LR_SCHEDULER: {args.lr_scheduler}, VIT_MODEL: {args.model_name},  splithead_method: {args.splithead_method}')
     print(f'DATASET: {args.dataset}, LR_SCHEDULER: {args.lr_scheduler}, VIT_MODEL: {args.model_name},  splithead_method: {args.splithead_method}')
     print('=='*70)
-    breakpoint()
-
+    
+    # ForkedPdb().set_trace()
+    
     # setup wandb logger
     wandb.init( 
             project=args.project_name,
@@ -304,9 +313,23 @@ def main():
     for epoch in range(args.num_epoch):
         # breakpoint()
         train_epoch(epoch, model, optimizer, criterion, lr_scheduler, train_dataloader, booster, coordinator)
+        # ForkedPdb().set_trace()    
         evaluate_model(epoch, model, criterion, eval_dataloader, booster, coordinator)
     logger.info(f"Finish finetuning", ranks=[0])
 
+    # save model & optimizer
+    save_path = f'{args.output_path}/{args.exp_name}'
+    if not os.path.exists(save_path):
+        os.mkdirs(save_path)
+          
+    save_dict = {
+        'model_state': model.module.state_dict(),
+        'opt_state':optimizer.state_dict(),
+        'num_epoch':args.num_epoch,
+    }
+    
+    torch.save(save_dict, f'{save_path}.pth')
+    
     # Save the finetuned model
     booster.save_model(model, args.output_path, shard=True)
     logger.info(f"Saving model checkpoint to {args.output_path}", ranks=[0])

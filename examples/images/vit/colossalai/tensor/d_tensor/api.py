@@ -144,7 +144,8 @@ def distribute_tensor(tensor: torch.Tensor, device_mesh: DeviceMesh, sharding_sp
     # hack some tensor methods
     _hijack_detach_and_clone(sharded_tensor)
 
-    ForkedPdb().set_trace()
+    # JINLOVESPHO
+    # ForkedPdb().set_trace()
     return sharded_tensor
 
 def init_as_dtensor(tensor: torch.Tensor, device_mesh: DeviceMesh, sharding_spec: ShardingSpec, global_shape: torch.Size) -> torch.Tensor:

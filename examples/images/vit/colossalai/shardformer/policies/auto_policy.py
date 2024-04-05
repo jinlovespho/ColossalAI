@@ -46,7 +46,7 @@ _POLICY_LIST = {
     
     # JINLOVESPHO
     # vit_split_head 
-    'networks.vit.ViT': PolicyLocation(file_name='my_vit', class_name='MyViTPolicy'),
+    'networks.vit.ViT': PolicyLocation(file_name='vit_my', class_name='ViT_My_Policy'),
     'networks.vit_splithead.ViT_SplitHead': PolicyLocation(file_name='vit_splithead', class_name='ViT_SplitHead_Policy'),
 
     # ViT

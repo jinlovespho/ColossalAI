@@ -41,7 +41,24 @@ class ViT_SplitHead_Policy(Policy):
         return self.model
 
     def module_policy(self) -> Dict[Union[str, nn.Module], ModulePolicyDescription]:
+        from networks.vit_splithead import ViT_SplitHead
+        from networks.layers_splithead import TransformerEncoder
+        
+        # ForkedPdb().set_trace()
         policy = {}
+
+        # 실행 X
+        if self.shard_config.enable_sequence_parallelism:
+            self.shard_config.enable_sequence_parallelism = False
+            warnings.warn("Vit doesn't support sequence parallelism now, will ignore the sequence parallelism flag.")
+
+        # ForkedPdb().set_trace()
+        # 실행 O
+        if self.shard_config.enable_tensor_parallelism:
+            policy
+            
+            
+            
     
         return policy
 

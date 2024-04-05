@@ -2,7 +2,7 @@ import torch
 import torch.nn as nn
 import torchsummary
 
-from networks.layer_methods import TransformerEncoder
+from networks.layers_splithead import TransformerEncoder
 
 class ViT_SplitHead(nn.Module):
     def __init__(self, in_c:int=3, num_classes:int=10, img_size:int=32, patch_size:int=8, dropout:float=0., 

@@ -10,7 +10,7 @@ DATA_ARGS="
 "
 
 PLUGIN="hybrid_parallel"  # plugin(training strategy): "torch_ddp"/"torch_ddp_fp16"/"low_level_zero"/"gemini"/"hybrid_parallel"
-tp_size=1
+tp_size=2
 PARALLEL_ARGS="
   --plugin ${PLUGIN} \
   --tp_size ${tp_size} \
@@ -29,9 +29,9 @@ TRAINING_ARGS="
   --seed 42 \
 "
 
-model_name="vit_splithead_small"   # 'vit_tiny' 'vit_small' 'vit_base' 'vit_large' 'vit_splithead_tiny/small/base'
+model_name="vit_small"   # 'vit_tiny' 'vit_small' 'vit_base' 'vit_large' 'vit_splithead_tiny/small/base'
 patch_size=4
-splithead_method=4    # 0:linear, 1:featurewise, 2:featureconv, 3:shuffle 4:roll
+splithead_method=0    # 0:linear, 1:featurewise, 2:featureconv, 3:shuffle 4:roll
 MODEL_ARGS="
   --model_name ${model_name} \
   --patch_size ${patch_size} \
@@ -41,22 +41,24 @@ MODEL_ARGS="
   --splithead_method ${splithead_method} \
 "
 
-CUDA=1
-is_wandb="online"   # ['disabled', 'online']
+
+is_wandb="disabled"   # ['disabled', 'online']
 WANDB_ARGS="
 --is_wandb ${is_wandb} \
 --project_name lignex1_vit_cifar100 \
---exp_name gpu${CUDA}_tp${tp_size}_${dataset}_${lr_scheduler}lr${lr}_${model_name}/${patch_size}_splithead${splithead_method} \
+--exp_name gpu23_tp${tp_size}_${dataset}_${lr_scheduler}lr${lr}_${model_name}${patch_size} \
 --wandb_save_dir /media/dataset1/lig_jinlovespho/log/colAI \
 "
 
 # number of gpus to use
-GPUNUM=1
+GPUNUM=2
 
 DISTRIBUTED_ARGS="
   --standalone \
   --nproc_per_node ${GPUNUM} \
 "
 
-CUDA_VISIBLE_DEVICES=${CUDA} torchrun ${DISTRIBUTED_ARGS} my_vit.py ${TRAINING_ARGS} ${PARALLEL_ARGS} ${MODEL_ARGS} ${DATA_ARGS} ${WANDB_ARGS}
+# 아래 명령으로 디버깅 가능
+# NCCL_DEBUG=INFO bash my_vit_cifar100_tp2.sh
+CUDA_VISIBLE_DEVICES=2,3 torchrun ${DISTRIBUTED_ARGS} my_vit_train.py ${TRAINING_ARGS} ${PARALLEL_ARGS} ${MODEL_ARGS} ${DATA_ARGS} ${WANDB_ARGS}
 

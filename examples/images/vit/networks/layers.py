@@ -4,6 +4,22 @@ import torch.nn.functional as F
 import torchsummary
 from einops import rearrange, einsum
 
+import sys
+import pdb
+
+class ForkedPdb(pdb.Pdb):
+    """
+    PDB Subclass for debugging multi-processed code
+    Suggested in: https://stackoverflow.com/questions/4716533/how-to-attach-debugger-to-a-python-subproccess
+    """
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
+        try:
+            sys.stdin = open('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
+        finally:
+            sys.stdin = _stdin
+            
 
 class TransformerEncoder(nn.Module):
     def __init__(self, feats:int, mlp_hidden:int, head:int=8, dropout:float=0.):
@@ -32,19 +48,24 @@ class MultiHeadSelfAttention(nn.Module):
         self.head = head
         self.feats = feats
         self.sqrt_d = self.feats**0.5
+        
+        # JINLOVESPHO  
+        self.tp_feats = feats
 
-        self.q = nn.Linear(feats, feats)
-        self.k = nn.Linear(feats, feats)
-        self.v = nn.Linear(feats, feats)
+        self.q = nn.Linear(feats, self.tp_feats)
+        self.k = nn.Linear(feats, self.tp_feats)
+        self.v = nn.Linear(feats, self.tp_feats)
 
         self.o = nn.Linear(feats, feats)
         self.dropout = nn.Dropout(dropout)
 
-    def forward(self, x):
+    def forward(self, x):   # x: (128,65,384)
         b, n, f = x.size()
-        q = self.q(x).view(b, n, self.head, self.feats//self.head).transpose(1,2)
-        k = self.k(x).view(b, n, self.head, self.feats//self.head).transpose(1,2)
-        v = self.v(x).view(b, n, self.head, self.feats//self.head).transpose(1,2)
+        
+        # ForkedPdb().set_trace()
+        q = self.q(x).view(b, n, self.head, self.tp_feats//self.head).transpose(1,2)
+        k = self.k(x).view(b, n, self.head, self.tp_feats//self.head).transpose(1,2)
+        v = self.v(x).view(b, n, self.head, self.tp_feats//self.head).transpose(1,2)
 
         score = F.softmax(torch.einsum("bhif, bhjf->bhij", q, k)/self.sqrt_d, dim=-1) #(b,h,n,n)
         attn = torch.einsum("bhij, bhjf->bihf", score, v) #(b,n,h,f//h)

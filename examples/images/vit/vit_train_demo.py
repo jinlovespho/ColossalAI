@@ -224,7 +224,7 @@ def main():
 
     # Prepare Dataset
     data_dir = args.data_dir
-    train_ds, val_ds = get_dataset(data_dir)
+    train_ds, val_ds = get_dataset(args)
     num_labels = len(train_ds.classes)
 
     # image_processor = ViTImageProcessor.from_pretrained(args.model_name_or_path)

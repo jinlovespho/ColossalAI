@@ -20,6 +20,7 @@ def get_criterion(args):
 
 
 def get_model(args):
+    # breakpoint()
     if args.model_name == 'vit_tiny':
         from networks.vit import ViT
         breakpoint()
@@ -44,7 +45,7 @@ def get_model(args):
     # JINLOVESPHO
     elif args.model_name == 'vit_small':
         from networks.vit import ViT
-        breakpoint()
+        # breakpoint()
         print('vit_small')
         args.num_layers=12
         args.hidden=384
@@ -127,7 +128,8 @@ def get_model(args):
             num_layers=args.num_layers,
             hidden=args.hidden,
             head=args.head,
-            is_cls_token=True
+            is_cls_token=True,
+            splithead_method=args.splithead_method
             )
     
     # JINLOVESPHO
@@ -149,7 +151,8 @@ def get_model(args):
             num_layers=args.num_layers,
             hidden=args.hidden,
             head=args.head,
-            is_cls_token=True
+            is_cls_token=True,
+            splithead_method=args.splithead_method
             )
         
     # JINLOVESPHO

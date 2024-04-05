@@ -17,34 +17,36 @@ PARALLEL_ARGS="
   --pp_size 1 \
 "
 
-lr=1e-5
+lr=1e-3
+lr_scheduler="linear"   # 'linear', 'cosine'
 TRAINING_ARGS="
   --num_epoch 200 \
   --batch_size 128 \
+  --lr_scheduler ${lr_scheduler} \
   --learning_rate ${lr} \
   --weight_decay 0.0001 \
-  --grad_checkpoint True \
+  --label_smoothing \
   --seed 42 \
 "
 
-model_name="vit_small"   # 'vit_tiny' 'vit_small' 'vit_base' 'vit_large'   
+model_name="vit_splithead_small"   # 'vit_tiny' 'vit_small' 'vit_base' 'vit_large' 'vit_splithead_tiny/small/base'
 patch_size=4
+splithead_method=4    # 0:linear, 1:featurewise, 2:featureconv, 3:shuffle 4:roll
 MODEL_ARGS="
   --model_name ${model_name} \
   --patch_size ${patch_size} \
-  --hidden_dropout_prob 0.0 \
-  --attention_probs_dropout_prob 0.1 \
   --output_path ./output_model \
   --dropout_ratio 0.1 \
   --warmup_ratio 0.01 \
-  --model_name_or_path google/vit-base-patch16-224 \
+  --splithead_method ${splithead_method} \
 "
 
-is_wandb="disabled"   # ['disabled', 'online']
+CUDA=1
+is_wandb="online"   # ['disabled', 'online']
 WANDB_ARGS="
 --is_wandb ${is_wandb} \
 --project_name lignex1_vit_cifar100 \
---exp_name server05_gpu0_${dataset}_${model_name}${patch_size}_tp${tp_size}_lr${lr}_noOptimization_fp32 \
+--exp_name gpu${CUDA}_tp${tp_size}_${dataset}_${lr_scheduler}lr${lr}_${model_name}${patch_size}_splithead${splithead_method} \
 --wandb_save_dir /media/dataset1/lig_jinlovespho/log/colAI \
 "
 
@@ -56,6 +58,5 @@ DISTRIBUTED_ARGS="
   --nproc_per_node ${GPUNUM} \
 "
 
-CUDA_VISIBLE_DEVICES=2 torchrun ${DISTRIBUTED_ARGS} vit_train_demo.py ${TRAINING_ARGS} ${PARALLEL_ARGS} ${MODEL_ARGS} ${DATA_ARGS} ${WANDB_ARGS}
-# CUDA_VISIBLE_DEVICES=5,6 colossalai run ${DISTRIBUTED_ARGS} --master_port 29505 vit_train_demo.py ${TRAINING_ARGS} ${PARALLEL_ARGS} ${MODEL_ARGS} ${DATA_ARGS} ${WANDB_ARGS}
+CUDA_VISIBLE_DEVICES=${CUDA} torchrun ${DISTRIBUTED_ARGS} my_vit_train.py ${TRAINING_ARGS} ${PARALLEL_ARGS} ${MODEL_ARGS} ${DATA_ARGS} ${WANDB_ARGS}
 

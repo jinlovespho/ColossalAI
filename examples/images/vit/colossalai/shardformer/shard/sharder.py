@@ -45,7 +45,7 @@ class ModelSharder(object):
         # ForkedPdb().set_trace()
         self.model = model
         self.shard_config = shard_config
-        self.policy = get_autopolicy(self.model) if policy is None else policy      # policy object 가 여기 들어온다.
+        self.policy = get_autopolicy(self.model) if policy is None else policy      # policy 클래스 object 객체가 들어오는 것.
         # ForkedPdb().set_trace()
         
 
@@ -53,13 +53,13 @@ class ModelSharder(object):
         r"""
         Shard the model according to the policy
         """
-        # ForkedPdb().set_trace()
         self.policy.set_model(self.model)                   # Policy class 멤버 변수 self.model 에 model 등록
         self.policy.set_shard_config(self.shard_config)
         self._preprocess()
         # get shared params before release unheld layers, this avoid misjudgment of shared params (None is None)
         shared_params = self.policy.get_shared_params()
         held_layers = self._release_unheld_layers()
+        # ForkedPdb().set_trace()
         self._replace_module(include=held_layers)       # 여기서 실제 shard 하는듯 
         self._materialize()
         self._postprocess()
@@ -100,7 +100,7 @@ class ModelSharder(object):
     def _recursive_replace_layer(
         self,
         module: nn.Module,
-        origin_cls: Union[str, nn.Module],
+        origin_cls: Union[str, nn.Module],          # origin_cls 로 수정하고자 하는 layer가 넘어온다. policy.module_policy()에서 지정해주게 됨.
         attr_replacement: Dict[str, Any],
         param_replacement: List[Callable],
         method_replacement: Dict[str, Callable],
@@ -127,8 +127,8 @@ class ModelSharder(object):
         ):
             # 여기서 실제 바꿔치기가 일어나네
             # origin_cls 에 해당하는 layer가 걸리도록 위에 if 문을 설정한 것.
-            print(type(module))
-            print(origin_cls)
+            # print(type(module))
+            # print(origin_cls)
             # ForkedPdb().set_trace()
             if attr_replacement is not None:
                 self._replace_attr(module, attr_replacement)
@@ -156,7 +156,7 @@ class ModelSharder(object):
                 include=include,
             )
             
-        print('FINISHED RECURSION')
+        # print('FINISHED RECURSION')
 
     def _replace_attr(
         self,
