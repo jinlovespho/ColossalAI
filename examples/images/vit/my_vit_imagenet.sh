@@ -18,14 +18,15 @@ PARALLEL_ARGS="
 "
 
 lr=3e-3
-lr_scheduler="linear"   # 'linear', 'cosine'
+lr_scheduler="cosine"   # 'linear', 'cosine'
 batch_size=128
+MAX_EPOCH=300
 TRAINING_ARGS="
-  --num_epoch 200 \
+  --num_epoch ${MAX_EPOCH} \
   --batch_size ${batch_size} \
   --lr_scheduler ${lr_scheduler} \
   --learning_rate ${lr} \
-  --weight_decay 0.1 \
+  --weight_decay 0.3 \
   --label_smoothing \
   --seed 42 \
 "
@@ -40,7 +41,7 @@ MODEL_ARGS="
   --warmup_ratio 0.01 \
 "
 
-is_wandb="online"   # ['disabled', 'online']
+is_wandb="disabled"   # ['disabled', 'online']
 WANDB_ARGS="
 --is_wandb ${is_wandb} \
 --project_name lignex1_vit_cifar100 \
@@ -49,12 +50,12 @@ WANDB_ARGS="
 "
 
 # number of gpus to use
-GPUNUM=2
+GPUNUM=1
 
 DISTRIBUTED_ARGS="
   --standalone \
   --nproc_per_node ${GPUNUM} \
 "
 
-CUDA_VISIBLE_DEVICES=0,1 torchrun ${DISTRIBUTED_ARGS} my_vit_train.py ${TRAINING_ARGS} ${PARALLEL_ARGS} ${MODEL_ARGS} ${DATA_ARGS} ${WANDB_ARGS}
+CUDA_VISIBLE_DEVICES=0 torchrun ${DISTRIBUTED_ARGS} my_vit_train.py ${TRAINING_ARGS} ${PARALLEL_ARGS} ${MODEL_ARGS} ${DATA_ARGS} ${WANDB_ARGS}
 

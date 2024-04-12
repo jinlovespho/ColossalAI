@@ -23,7 +23,7 @@ def get_model(args):
     # breakpoint()
     if args.model_name == 'vit_tiny':
         from networks.vit import ViT
-        breakpoint()
+        # breakpoint()
         print('vit_tiny')
         args.num_layers=12
         args.hidden=192
@@ -86,6 +86,50 @@ def get_model(args):
             is_cls_token=True
             )
         
+    # JINLOVESPHO
+    elif args.model_name == 'vit_large':
+        from networks.vit import ViT
+        # breakpoint()
+        print('vit_large')
+        args.num_layers=24
+        args.hidden=1024
+        args.mlp_hidden=4096
+        args.head=16
+        net = ViT(
+            in_c=3,
+            num_classes=args.num_class, 
+            img_size=args.img_size,
+            patch_size=args.patch_size, 
+            dropout=args.dropout_ratio, 
+            mlp_hidden=args.mlp_hidden,
+            num_layers=args.num_layers,
+            hidden=args.hidden,
+            head=args.head,
+            is_cls_token=True
+            )
+    
+    # JINLOVESPHO
+    elif args.model_name == 'vit_huge':
+        from networks.vit import ViT
+        # breakpoint()
+        print('vit_huge')
+        args.num_layers=32
+        args.hidden=1280
+        args.mlp_hidden=5120
+        args.head=16
+        net = ViT(
+            in_c=3,
+            num_classes=args.num_class, 
+            img_size=args.img_size,
+            patch_size=args.patch_size, 
+            dropout=args.dropout_ratio, 
+            mlp_hidden=args.mlp_hidden,
+            num_layers=args.num_layers,
+            hidden=args.hidden,
+            head=args.head,
+            is_cls_token=True
+            )    
+    
     # JINLOVESPHO
     elif args.model_name == 'vit_splithead_tiny':
         from networks.vit_splithead import ViT_SplitHead

@@ -117,6 +117,8 @@ class ViT_My_Policy(Policy):
                 ]
             )
             
+            # ForkedPdb().set_trace()
+            
         return policy
 
     def new_model_class(self):

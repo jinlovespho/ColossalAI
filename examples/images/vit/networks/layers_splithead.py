@@ -13,6 +13,7 @@ class TransformerEncoder(nn.Module):
         # breakpoint()
         self.feats = feats
         self.head = head
+        self.head_dim = int(self.feats//self.head)
         super(TransformerEncoder, self).__init__()
         self.la1 = nn.LayerNorm(feats//head)
         self.msa = MultiHeadSelfAttention(feats, head=head, dropout=dropout)
@@ -40,12 +41,14 @@ class TransformerEncoder(nn.Module):
         elif self.Method==4:
             self.Shift=2
             print(f"Method: Shift-(1/{self.Shift})")
+        elif self.Method==5:
+            print(f'Method: Cls token Average')
 
     def forward(self, x: torch.Tensor):
         nvtx.range_push('model forward_split')
         # breakpoint()
         b, n, f = x.size()
-        x = x.view(b, n, self.head, self.feats//self.head)
+        x = x.view(b, n, self.head, self.head_dim)
         out = self.msa(self.la1(x)) + x 
         out = self.mlp(self.la2(out)) + out
         
@@ -68,6 +71,23 @@ class TransformerEncoder(nn.Module):
         elif self.Method==4:
             # Feature Shift
             out = torch.roll(out, shifts=self.feats//self.Shift, dims=-1)
+        elif self.Method==5:
+            # cls token avg
+            # out: (b,n,h,hd)
+            out = out.permute(0,2,1,3)  # (b,h,n,hd)
+            
+            # collect head cls tokens average
+            cls_avg_head = torch.zeros(b, 1, 1, self.head_dim).to('cuda')
+            for i in range(self.head):
+                cls_avg_head += out[:, i:i+1, 0:1, :]
+            
+            # distribute cls token averages to all heads
+            for i in range(self.head):
+                out[:, i:i+1, 0:1, :] = cls_avg_head 
+                
+            # re permute out shape
+            out = out.permute(0,2,1,3)  # (b,n,h,hd)
+        
         nvtx.range_pop()
         return out.flatten(2)
 
@@ -96,6 +116,7 @@ class MultiHeadSelfAttention(nn.Module):
     def forward(self, x):
         #batch, seq_len, dim///
         b, n, h, f = x.size()
+        # breakpoint()
         # x = x[:, :, self.shuffle_order] #Random shuffling
         # x = x.transpose(2,3).reshape(b,n,h,f) #shuffle
         q = self.q(x).transpose(1,2)
@@ -148,6 +169,7 @@ class GroupedLinear(nn.Module):
     def forward(self, x):
         # x = (.., g, f//g)
         # Apply each linear layer to its corresponding group
+        # breakpoint()
         out = torch.einsum("...gi, gij->...gj", x, self.weight)
         if self.bias is not None:
             out += self.bias

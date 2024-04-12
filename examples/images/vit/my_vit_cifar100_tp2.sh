@@ -17,7 +17,7 @@ PARALLEL_ARGS="
   --pp_size 1 \
 "
 
-lr=1e-3
+lr=8e-5
 lr_scheduler="linear"   # 'linear', 'cosine'
 TRAINING_ARGS="
   --num_epoch 200 \
@@ -29,7 +29,7 @@ TRAINING_ARGS="
   --seed 42 \
 "
 
-model_name="vit_small"   # 'vit_tiny' 'vit_small' 'vit_base' 'vit_large' 'vit_splithead_tiny/small/base'
+model_name="vit_base"   # 'vit_tiny' 'vit_small' 'vit_base' 'vit_large' 'vit_splithead_tiny/small/base'
 patch_size=4
 splithead_method=0    # 0:linear, 1:featurewise, 2:featureconv, 3:shuffle 4:roll
 MODEL_ARGS="
@@ -42,7 +42,7 @@ MODEL_ARGS="
 "
 
 
-is_wandb="disabled"   # ['disabled', 'online']
+is_wandb="online"   # ['disabled', 'online']
 WANDB_ARGS="
 --is_wandb ${is_wandb} \
 --project_name lignex1_vit_cifar100 \

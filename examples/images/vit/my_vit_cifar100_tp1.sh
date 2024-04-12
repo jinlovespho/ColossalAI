@@ -1,6 +1,9 @@
 set -xe
 # pip install -r requirements.txt
 
+# torch.__version__ '2.1.2'
+# torch.version.cuda '12.1'
+
 dataset="cifar100"
 DATA_ARGS="
   --data_dir /media/dataset1/lig_jinlovespho/cifar100 \
@@ -17,7 +20,7 @@ PARALLEL_ARGS="
   --pp_size 1 \
 "
 
-lr=1e-3
+lr=5e-4
 lr_scheduler="linear"   # 'linear', 'cosine'
 TRAINING_ARGS="
   --num_epoch 200 \
@@ -29,9 +32,9 @@ TRAINING_ARGS="
   --seed 42 \
 "
 
-model_name="vit_splithead_small"   # 'vit_tiny' 'vit_small' 'vit_base' 'vit_large' 'vit_splithead_tiny/small/base'
+model_name="vit_splithead_base"   # 'vit_tiny/small/base/large/huge' 'vit_splithead_tiny/small/base'
 patch_size=4
-splithead_method=4    # 0:linear, 1:featurewise, 2:featureconv, 3:shuffle 4:roll
+splithead_method=5   # 0:linear, 1:featurewise, 2:featureconv, 3:shuffle 4:roll, 5:cls_tkn_avg
 MODEL_ARGS="
   --model_name ${model_name} \
   --patch_size ${patch_size} \
@@ -41,8 +44,8 @@ MODEL_ARGS="
   --splithead_method ${splithead_method} \
 "
 
-CUDA=1
-is_wandb="online"   # ['disabled', 'online']
+CUDA=3
+is_wandb="disabled"   # ['disabled', 'online']
 WANDB_ARGS="
 --is_wandb ${is_wandb} \
 --project_name lignex1_vit_cifar100 \
@@ -58,5 +61,7 @@ DISTRIBUTED_ARGS="
   --nproc_per_node ${GPUNUM} \
 "
 
+# source /home/lig/anaconda3/etc/profile.d/conda.sh
+# conda activate cAI
 CUDA_VISIBLE_DEVICES=${CUDA} torchrun ${DISTRIBUTED_ARGS} my_vit_train.py ${TRAINING_ARGS} ${PARALLEL_ARGS} ${MODEL_ARGS} ${DATA_ARGS} ${WANDB_ARGS}
-
+# CUDA_VISIBLE_DEVICES=${CUDA} colossalai run ${DISTRIBUTED_ARGS} --master_port 29505 my_vit_train.py ${TRAINING_ARGS} ${PARALLEL_ARGS} ${MODEL_ARGS} ${DATA_ARGS} ${WANDB_ARGS}

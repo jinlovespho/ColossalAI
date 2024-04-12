@@ -31,6 +31,7 @@ from torchprofile import profile_macs
 from fvcore.nn import FlopCountAnalysis, flop_count_table, parameter_count_table
 import os 
 import time
+from torch.cuda import nvtx
 
 # ForkedPdb().set_trace()
 class ForkedPdb(pdb.Pdb):
@@ -312,7 +313,9 @@ def main():
     logger.info(f"Start Training", ranks=[0])
     for epoch in range(args.num_epoch):
         # breakpoint()
+        nvtx.range_push('model forward_split')
         train_epoch(epoch, model, optimizer, criterion, lr_scheduler, train_dataloader, booster, coordinator)
+        nvtx.range_pop()
         # ForkedPdb().set_trace()    
         evaluate_model(epoch, model, criterion, eval_dataloader, booster, coordinator)
     logger.info(f"Finish finetuning", ranks=[0])
@@ -320,7 +323,7 @@ def main():
     # save model & optimizer
     save_path = f'{args.output_path}/{args.exp_name}'
     if not os.path.exists(save_path):
-        os.mkdirs(save_path)
+        os.makedirs(save_path)
           
     save_dict = {
         'model_state': model.module.state_dict(),
