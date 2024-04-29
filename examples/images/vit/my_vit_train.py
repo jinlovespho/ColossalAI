@@ -111,7 +111,18 @@ def train_epoch(
     with tqdm(range(num_steps), desc=f"Epoch [{epoch + 1}]", disable=not enable_pbar) as pbar:
         for _ in pbar:
             # breakpoint()
+            torch.cuda.synchronize()
+            start_time = time.time()
+            
             loss, _ = run_forward_backward(model, optimizer, criterion, data_iter, booster)
+            torch.cuda.synchronize()
+            end_time = time.time()
+            inf_time=end_time-start_time
+            throughput = 1/inf_time 
+            
+            wandb.log( {'throughput':throughput} )
+            wandb.log( {'inference_time':inf_time} )
+            
             optimizer.step()
             lr_scheduler.step()
             
@@ -197,6 +208,8 @@ def main():
     coordinator = DistCoordinator()
     world_size = coordinator.world_size
     print('world size: ', world_size)
+    print('tp_size: ', args.tp_size)
+    print('pp_size: ', args.pp_size)
     
     # ForkedPdb().set_trace()
     
@@ -243,6 +256,7 @@ def main():
         plugin = HybridParallelPlugin(
             tp_size=args.tp_size,
             pp_size=args.pp_size,
+            zero_stage=0,   # normal torch ddp 
             num_microbatches=None,
             microbatch_size=1,
             enable_all_optimization=False,
@@ -258,7 +272,7 @@ def main():
         train_ds, batch_size=args.batch_size, shuffle=True, drop_last=True
     )
     eval_dataloader = plugin.prepare_dataloader(
-        val_ds, batch_size=args.batch_size, shuffle=True, drop_last=True
+        val_ds, batch_size=args.batch_size, shuffle=False, drop_last=True
     )
 
     # Set optimizer
@@ -281,7 +295,8 @@ def main():
     )
     
     # total number of parameters
-    args.params = sum(i.numel() for i in model.module.parameters())
+    args.module_params = sum(i.numel() for i in model.module.parameters())
+    args.model_params = sum(i.numel() for i in model.parameters())
     
     # macs, flops 
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
@@ -294,6 +309,8 @@ def main():
     # parameter_count_table(model.module)
     
     print('=='*70)
+    print(args.module_params)
+    print(args.model_params)
     print(f'DATASET: {args.dataset}, LR_SCHEDULER: {args.lr_scheduler}, VIT_MODEL: {args.model_name},  splithead_method: {args.splithead_method}')
     print(f'DATASET: {args.dataset}, LR_SCHEDULER: {args.lr_scheduler}, VIT_MODEL: {args.model_name},  splithead_method: {args.splithead_method}')
     print('=='*70)

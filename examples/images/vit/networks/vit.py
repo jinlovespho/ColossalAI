@@ -24,6 +24,7 @@ class ViT(nn.Module):
             nn.LayerNorm(hidden),
             nn.Linear(hidden, num_classes) # for cls_token
         )
+        # breakpoint()
 
 
     def forward(self, x):

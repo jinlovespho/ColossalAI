@@ -129,6 +129,7 @@ class _CppExtension(_Extension):
         except (ImportError, ModuleNotFoundError):
             # if import error occurs, it means that the kernel is not pre-built
             # so we build it jit
+            # breakpoint()
             op_kernel = self.build_jit()
 
         return op_kernel

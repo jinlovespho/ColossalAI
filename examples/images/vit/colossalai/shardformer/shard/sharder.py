@@ -58,6 +58,7 @@ class ModelSharder(object):
         self._preprocess()
         # get shared params before release unheld layers, this avoid misjudgment of shared params (None is None)
         shared_params = self.policy.get_shared_params()
+        # ForkedPdb().set_trace()
         held_layers = self._release_unheld_layers()
         # ForkedPdb().set_trace()
         self._replace_module(include=held_layers)       # 여기서 실제 shard 하는듯 
@@ -264,8 +265,10 @@ class ModelSharder(object):
         r"""
         Release the unheld layers in the model
         """
+        # ForkedPdb().set_trace()
         if self.shard_config and self.shard_config.pipeline_stage_manager:
             held_layers = self.policy.get_held_layers()
+            
             set_tensors_to_none(self.model, exclude=set(held_layers))
             return set(self._get_recursive_held_layers(held_layers))
         return None

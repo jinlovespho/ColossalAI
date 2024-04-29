@@ -135,6 +135,7 @@ class Linear1D_Col(ParallelModule):
             self.weight = Parameter(torch.empty(self.out_features, self.in_features, **factory_kwargs))
 
         else:   # 여기 실행 O
+            # ForkedPdb().set_trace()
             weight.data = weight.data.to(device=device, dtype=dtype)
             self.weight = weight
             
@@ -217,25 +218,29 @@ class Linear1D_Col(ParallelModule):
             input_.shape, self.weight.shape, self.weight.shape[-1]
         )
 
+        # ForkedPdb().set_trace()
         # Set up backprop all-reduce.
         input_parallel = input_
 
         # Matrix multiply.
         bias = self.bias if not self.skip_bias_add else None
-        if self.seq_parallel:
+        if self.seq_parallel:   # 실행 X
+            # ForkedPdb().set_trace()
             output_parallel = linear_gather_forward_reducescatter_backward(
                 input_parallel, self.weight, bias, self.process_group, True, self.seq_parallel_dim, self.overlap
             )
-        else:
+        else:   # 실행 O
             output_parallel = linear_with_async_comm(input_parallel, self.weight, bias, self.process_group, True)
 
-        if self.gather_output:
+        # ForkedPdb().set_trace()
+        if self.gather_output: 
+            # ForkedPdb().set_trace()
             # All-gather across the partitions.
             output = gather_forward_split_backward(output_parallel, dim=-1, process_group=self.process_group)
         else:
             output = output_parallel
 
-        if self.skip_bias_add:
+        if self.skip_bias_add:  # 실행 X
             return output, self.bias
         else:
             return output
@@ -402,7 +407,9 @@ class Linear1D_Row(ParallelModule):
 
     def forward(self, input_: Tensor) -> Tensor:
         # Set up backprop all-reduce.
-        if self.parallel_input:
+
+        # ForkedPdb().set_trace()
+        if self.parallel_input: # 실행 O
             assert (
                 input_.shape[-1] == self.weight.shape[-1]
             ), "Invalid shapes in Linear1D_Row forward: input={}, weight={}. Expected last dim of input {}.".format(
@@ -416,8 +423,9 @@ class Linear1D_Row(ParallelModule):
                 input_.shape, self.weight.shape, self.weight.shape[-1] * self.num_partitions
             )
             input_ = split_forward_gather_backward(input_, dim=-1, process_group=self.process_group)
-
-        if self.stream_chunk_num > 1:
+        
+        # ForkedPdb().set_trace()
+        if self.stream_chunk_num > 1:   # self.stream_chunk_num=1
             if self.training:
                 raise RuntimeError("use stream_chunk_num=1 in Linear1D_Row for training!")
             with torch.no_grad():
@@ -433,13 +441,14 @@ class Linear1D_Row(ParallelModule):
                 for handle in handle_list:
                     handle.wait()
                 output = torch.cat(output_parallel_list, dim=-1)
-        else:
+        else:   # 여기 실행 O
+            # ForkedPdb().set_trace()
             output_parallel = linear_with_async_comm(input_, self.weight, None, None, False)
             if self.seq_parallel:
                 output = linear_reducescatter_forward_gather_backward(
                     output_parallel, self.process_group, self.seq_parallel_dim
                 )
-            else:
+            else:   # 여기 실행 O
                 output = reduce_forward(output_parallel, self.process_group)
 
         if not self.skip_bias_add:

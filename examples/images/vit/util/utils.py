@@ -6,6 +6,22 @@ from util.autoaugment import CIFAR10Policy, SVHNPolicy, ImageNetPolicy
 from util.criterions import LabelSmoothingCrossEntropyLoss
 from util.da import RandomCropPaste
 
+import sys
+import pdb
+# ForkedPdb().set_trace()
+class ForkedPdb(pdb.Pdb):
+    """
+    PDB Subclass for debugging multi-processed code
+    Suggested in: https://stackoverflow.com/questions/4716533/how-to-attach-debugger-to-a-python-subproccess
+    """
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
+        try:
+            sys.stdin = open('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
+        finally:
+            sys.stdin = _stdin
+
 
 def get_criterion(args):
     if args.criterion=="ce":
@@ -47,7 +63,7 @@ def get_model(args):
         from networks.vit import ViT
         # breakpoint()
         print('vit_small')
-        args.num_layers=12
+        args.num_layers=12    
         args.hidden=384
         args.mlp_hidden=1536
         args.head=6
@@ -63,6 +79,8 @@ def get_model(args):
             head=args.head,
             is_cls_token=True
             )
+        tmp=sum(i.numel() for i in net.parameters())
+        # ForkedPdb().set_trace()
     
     # JINLOVESPHO
     elif args.model_name == 'vit_base':
@@ -117,6 +135,7 @@ def get_model(args):
         args.hidden=1280
         args.mlp_hidden=5120
         args.head=16
+        args.patch_size=14      # vit_Huge 는 patch_size 가 14 이다.
         net = ViT(
             in_c=3,
             num_classes=args.num_class, 

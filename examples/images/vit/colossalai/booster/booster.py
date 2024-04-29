@@ -17,6 +17,25 @@ from .mixed_precision import MixedPrecision, mixed_precision_factory
 from .plugin import Plugin
 from .plugin.pp_plugin_base import PipelinePluginBase
 
+
+import sys
+import pdb
+
+# ForkedPdb().set_trace()
+class ForkedPdb(pdb.Pdb):
+    """
+    PDB Subclass for debugging multi-processed code
+    Suggested in: https://stackoverflow.com/questions/4716533/how-to-attach-debugger-to-a-python-subproccess
+    """
+    def interaction(self, *args, **kwargs):
+        _stdin = sys.stdin
+        try:
+            sys.stdin = open('/dev/stdin')
+            pdb.Pdb.interaction(self, *args, **kwargs)
+        finally:
+            sys.stdin = _stdin
+
+
 __all__ = ["Booster"]
 
 
@@ -141,17 +160,18 @@ class Booster:
             model, optimizer, criterion, dataloader, lr_scheduler = self.plugin.configure(          # 여기서 policy 가 configure 된다 ! 
                 model, optimizer, criterion, dataloader, lr_scheduler
             )
-
-        if self.plugin and not self.plugin.control_device():
+            
+        # ForkedPdb().set_trace()
+        if self.plugin and not self.plugin.control_device():    # 실행 X
             # transform model for accelerator
             model = self.accelerator.configure_model(model)
 
-        if self.mixed_precision and (self.plugin is None or self.plugin and not self.plugin.control_precision()):
+        if self.mixed_precision and (self.plugin is None or self.plugin and not self.plugin.control_precision()):   # 실행 X
             # transform model for mixed precision
             # when mixed_precision is specified and the plugin is not given or does not control the precision
             model, optimizer, criterion = self.mixed_precision.configure(model, optimizer, criterion)
 
-        if pretrained_path:
+        if pretrained_path:     # 실행 X
             self.load_model(model, pretrained_path)
             # clear pretrained path attr
             orig_model = model.unwrap() if isinstance(model, ModelWrapper) else model

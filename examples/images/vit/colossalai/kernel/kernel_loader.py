@@ -78,6 +78,7 @@ class KernelLoader:
             warnings.warn(
                 f"More than one kernel is available, loading the kernel with the highest priority - {usable_exts[0].__class__.__name__}"
             )
+            
         return usable_exts[0].load()
 
 

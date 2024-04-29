@@ -37,6 +37,7 @@ class TransformerEncoder(nn.Module):
         )
 
     def forward(self, x):
+        # ForkedPdb().set_trace()
         out = self.msa(self.la1(x)) + x
         out = self.mlp(self.la2(out)) + out
         return out
